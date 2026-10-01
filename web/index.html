@@ -11,7 +11,7 @@
 <header class="topbar">
   <div class="brand">竹喧<span class="sub">背单词</span></div>
   <nav class="tabs">
-    <button class="tab active" data-view="study">开始背</button>
+    <button class="tab active" data-view="study">背诵</button>
     <button class="tab" data-view="lib">词库</button>
     <button class="tab" data-view="look">查词</button>
   </nav>
@@ -25,6 +25,8 @@
   <section class="view" id="view-study">
 
     <div class="phase zen" id="study-ready">
+      <div class="zenhead">从哪个词库背？</div>
+      <div class="bookpick"><select id="studyBook"></select></div>
       <div class="zenhead">本轮要背多少个单词？</div>
       <div class="sizer">
         <button class="step" data-step="-10">−10</button>
@@ -77,6 +79,7 @@
   <!-- ==================== 词库 ==================== -->
   <section class="view" id="view-lib" hidden>
     <div class="tools">
+      <select id="libBook" title="按词库筛选"></select>
       <div class="searchbox">
         <input autocomplete="off" spellcheck="false" name="word-query" id="search" placeholder="搜索单词或中文…">
         <button class="clearbtn" id="searchClear" title="清空搜索" hidden>×</button>
@@ -88,7 +91,8 @@
         <option value="alpha">字母序</option>
         <option value="wrong">错得最多</option>
       </select>
-      <button class="primary" id="addBtn">+ 添加</button>
+      <button id="newBookBtn" title="新建一个词库">＋ 词库</button>
+      <button class="primary" id="addBtn">＋ 添加</button>
       <button id="importBtn">导入</button>
       <button id="enrichBtn" hidden>补全释义</button>
     </div>
@@ -120,6 +124,7 @@
         <button class="clearbtn" id="lookClear" title="清空" hidden>×</button>
       </div>
       <button class="primary" id="lookBtn">查询</button>
+      <select id="lookBook" title="查到词以后，加进哪个词库"></select>
     </div>
     <div class="lookhint" id="lookHint">
       查一个词的完整资料：音标、释义、例句、短语搭配、同义词、词形变化，以及柯林斯 / 词源等更多内容。查过一次就会存在本机，之后秒回、断网也能看。
@@ -132,8 +137,20 @@
 
 <!-- ==================== 导入 ==================== -->
 <div class="modal" id="importModal" hidden>
-  <div class="modalbox">
+  <div class="modalbox wide">
     <h3>导入单词</h3>
+
+    <div class="setrow">
+      <div class="sethead">
+        <span class="setname">导入到哪个词库</span>
+        <select class="setnum wide" id="importBook"></select>
+      </div>
+    </div>
+
+    <div class="blockhead">一、从内置词表导入</div>
+    <div class="vocablist" id="vocabList"></div>
+
+    <div class="blockhead">二、或者粘贴 / 上传自己的单词</div>
     <p class="dim">
       <b>一行一个英文就够了</b>，中文会自动查词典补上。<br>
       想自己指定中文也行 —— 英文和中文用 Tab 或逗号隔开（也可以直接拖个 Excel 文件进来）。
@@ -145,7 +162,7 @@
     </div>
     <div class="modalact">
       <button class="link" id="importCancel">取消</button>
-      <button class="primary" id="importOk">导入</button>
+      <button class="primary" id="importOk">导入这些单词</button>
     </div>
     <div class="modalmsg" id="importMsg"></div>
   </div>
@@ -159,6 +176,7 @@
     <div class="formrow"><label>中文释义</label><input autocomplete="off" spellcheck="false" id="editCn"></div>
     <div class="formrow"><label>词性</label><input autocomplete="off" spellcheck="false" id="editPos" placeholder="adj. / n. / v. / phr."></div>
     <div class="formrow"><label>音标</label><input autocomplete="off" spellcheck="false" id="editPh" ></div>
+    <div class="formrow" id="editBookRow"><label>加入词库</label><select id="addBook"></select></div>
     <div class="modalact">
       <button class="link" id="editCancel">取消</button>
       <button class="primary" id="editOk">保存</button>
@@ -177,6 +195,33 @@
       <span class="dim" id="prevCursor" style="margin-right:auto;font-size:12px"></span>
       <button class="primary" id="prevClose">返回答题</button>
     </div>
+  </div>
+</div>
+
+<!-- ==================== 新建词库 ==================== -->
+<div class="modal" id="newBookModal" hidden>
+  <div class="modalbox confirm">
+    <h3>新建词库</h3>
+    <div class="setrow">
+      <input autocomplete="off" spellcheck="false" id="newBookName" placeholder="比如：雅思核心、我的生词本">
+    </div>
+    <div class="modalact">
+      <button class="link" id="newBookCancel">取消</button>
+      <button class="primary" id="newBookOk">新建</button>
+    </div>
+    <div class="modalmsg" id="newBookMsg"></div>
+  </div>
+</div>
+
+<!-- ==================== 词库管理 ==================== -->
+<div class="modal" id="bookModal" hidden>
+  <div class="modalbox">
+    <h3>词库管理</h3>
+    <div id="bookList"></div>
+    <div class="modalact">
+      <button class="primary" id="bookClose">关闭</button>
+    </div>
+    <div class="modalmsg" id="bookMsg"></div>
   </div>
 </div>
 
@@ -267,6 +312,7 @@
   <script src="/js/lib.js"></script>
   <script src="/js/settings.js"></script>
   <script src="/js/look.js"></script>
+  <script src="/js/books.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

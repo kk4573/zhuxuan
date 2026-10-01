@@ -28,8 +28,10 @@ async function loadWords(page, scrollTop) {
   const q = $('#search').value.trim();
   const sort = $('#sort').value;
   try {
+    const bid = curLibBookId();
     const r = await api('GET', '/api/words?q=' + encodeURIComponent(q) +
-                        '&sort=' + sort + '&page=' + currentPage + '&size=' + PAGE_SIZE);
+                        '&sort=' + sort + '&page=' + currentPage + '&size=' + PAGE_SIZE +
+                        (bid ? '&book_id=' + bid : ''));
     // 删掉当前页最后一条后，这一页可能空了 —— 往前退一页
     if (!r.items.length && r.total > 0 && currentPage > 1) {
       currentPage -= 1;
@@ -99,7 +101,14 @@ function renderPager(el, r, withJumpBottom) {
     '</span>';
 }
 
-function openEdit(id) {
+async function openEdit(id) {
+  await refreshBookSelects();          // 词库下拉要最新
+  const bookSel = $('#addBook');
+  const bookRow = $('#editBookRow');
+  if (bookRow) bookRow.hidden = !!id;  // 改词时不改归属
+  if (!id && bookSel && [...BOOKS].some((b) => b.id === curLibBookId())) {
+    bookSel.value = curLibBookId() || defaultBookId();
+  }
   editingId = id || null;
   const w = id ? wordCache[id] : null;
   $('#editTitle').textContent = id ? '修改单词' : '添加单词';
@@ -322,10 +331,23 @@ function bindLib() {
     if (!en) { msg('#editMsg', '英文不能为空', 'bad'); return; }
     const body = { en: en, cn: $('#editCn').value.trim(), pos: $('#editPos').value.trim(), ph: $('#editPh').value.trim() };
     try {
-      if (editingId) await api('PUT', '/api/words/' + editingId, body);
-      else await api('POST', '/api/words', body);
-      $('#editModal').hidden = true;
-      toast(editingId ? '已保存' : '已添加', 'ok');
+      if (editingId) {
+        await api('PUT', '/api/words/' + editingId, body);
+      } else {
+        const bsel = $('#addBook');
+        if (bsel && bsel.value) body.book_id = parseInt(bsel.value, 10);
+        const res = await api('POST', '/api/words', body);
+        if (res && res.existing) {
+          msg('#editMsg', '「' + en + '」已经在词库里了，已把它加进当前词库（释义没动）', 'ok');
+        }
+      }
+      if (editingId) {
+        $('#editModal').hidden = true;
+        toast('已保存', 'ok');
+      } else if (!(res && res.existing)) {
+        $('#editModal').hidden = true;
+        toast('已添加', 'ok');
+      }
       loadWords(); loadStats();
     } catch (err) { msg('#editMsg', err.message, 'bad'); }
   };
@@ -357,11 +379,14 @@ function bindLib() {
       if (file) {
         const fd = new FormData();
         fd.append('file', file);
+        if (curImportBookId()) fd.append('book_id', String(curImportBookId()));
         const res = await fetch('/api/words/import-xlsx', { method: 'POST', body: fd });
         r = await res.json();
         if (!res.ok) throw new Error(r.detail || ('HTTP ' + res.status));
       } else {
-        r = await api('POST', '/api/words/auto-add', { text: text, lookup: false });
+        r = await api('POST', '/api/words/auto-add', {
+          text: text, lookup: false, book_id: curImportBookId(),
+        });
       }
       let line = '导入完成：新增 ' + r.added + ' 个，跳过重复 ' + r.skipped + ' 个';
       msg('#importMsg', line, 'ok');

@@ -143,6 +143,7 @@ $('#goTop').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
 function showView(v) {
   S.view = v;
+  try { if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v); } catch (e) { /* 无所谓 */ }
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === v));
   $('#view-study').hidden = v !== 'study';
   $('#view-lib').hidden = v !== 'lib';
@@ -166,6 +167,7 @@ function showPhase(p) {
 /* ==================== 统计 ==================== */
 
 async function loadStats() {
+  loadBooks().then(() => { if (!$('#studyBook') || !$('#studyBook').value) refreshBookSelects(); });
   try {
     const s = await api('GET', '/api/stats');
     S.stats = s;

@@ -8,7 +8,9 @@ async function startSession() {
   const size = Math.max(1, parseInt($('#sizeInput').value, 10) || 1);
   $('#startBtn').disabled = true;
   try {
-    const r = await api('POST', '/api/session/start', { size });
+    const r = await api('POST', '/api/session/start', {
+      size: size, book_id: (curStudyBook() || {}).id,
+    });
     S.sessionId = r.session_id;
     S.queue = r.items.map((w) => Object.assign({}, w, { firstTry: null }));
     S.total = r.count;

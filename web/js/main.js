@@ -19,11 +19,15 @@ function init() {
   bindLib();
   bindSettings();
   bindLook();
+  bindBooks();
 
 
   // 首次加载
   loadStats();
   showPhase('ready');
+  // 允许用 #lib / #look 直接落到某个页面（调试和截图方便）
+  const h = (location.hash || '').replace('#', '');
+  if (['study', 'lib', 'look'].includes(h)) showView(h);
 }
 
 init();

@@ -20,7 +20,7 @@ WEB = ROOT / "web"
 # JS 运行时才生成的元素（弹层里点出来的按钮），HTML 里本来就没有
 DYNAMIC_IDS = {"againBtn", "toLibBtn", "otherAddBtn", "lookSpk", "lookAddBtn", "lookRefresh"}
 # 通过字符串参数引用、不走 $('#x') 的 id
-STRING_REF_IDS = {"editMsg", "importMsg", "settingsMsg"}
+STRING_REF_IDS = {"editMsg", "importMsg", "settingsMsg", "bookMsg", "newBookMsg"}
 
 OK = 0
 FAIL = 0
@@ -104,7 +104,10 @@ def main() -> int:
                 "settingsBtn", "settingsModal", "settingsOk", "settingsCancel",
                 "setIme", "setKey", "setAccent", "setDecay", "cfgPath",
                 "lookInput", "lookBtn", "lookClear", "lookResult", "lookHint",
-                "clearCache", "cacheCount"):
+                "clearCache", "cacheCount",
+                "studyBook", "libBook", "lookBook", "importBook", "addBook",
+                "newBookBtn", "newBookModal", "newBookName", "newBookOk",
+                "newBookCancel", "bookModal", "bookList", "bookClose", "vocabList"):
         check(f"关键元素 #{sel} 存在", sel in html_ids)
 
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")

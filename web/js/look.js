@@ -205,8 +205,10 @@ function renderLook(r) {
     add.disabled = true;
     add.textContent = '加入中…';
     try {
-      await api('POST', '/api/words', { en: r.en, cn: r.cn, pos: r.pos, ph: r.ph });
-      toast('已加入词库：' + r.en, 'ok');
+      const bsel = $('#lookBook');
+      const bid = bsel && bsel.value ? parseInt(bsel.value, 10) : undefined;
+      const res = await api('POST', '/api/words', { en: r.en, cn: r.cn, pos: r.pos, ph: r.ph, book_id: bid });
+      toast(res && res.existing ? '已在词库中，已加进当前词库：' + r.en : '已加入词库：' + r.en, 'ok');
       doLookup(r.en);              // 重新渲染，这回会显示「已在词库」
       loadStats();
     } catch (e) {

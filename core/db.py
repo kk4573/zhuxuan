@@ -54,6 +54,25 @@ CREATE INDEX IF NOT EXISTS idx_answers_at ON answers(at);
 CREATE INDEX IF NOT EXISTS idx_answers_word ON answers(word_id);
 
 -- 查过的词在这里留一份，二次查询不再联网，断网也能用
+CREATE TABLE IF NOT EXISTS books (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE,
+    sort       INTEGER NOT NULL DEFAULT 0,
+    is_default INTEGER NOT NULL DEFAULT 0,   -- 只有一个词库会是 1
+    builtin    TEXT NOT NULL DEFAULT '',     -- 内置词表标识（CET4 / CET6 / NPEE…），自建为空
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS book_words (
+    book_id  INTEGER NOT NULL,
+    word_id  INTEGER NOT NULL,
+    added_at TEXT NOT NULL,
+    PRIMARY KEY (book_id, word_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_book_words_book ON book_words(book_id);
+CREATE INDEX IF NOT EXISTS idx_book_words_word ON book_words(word_id);
+
 CREATE TABLE IF NOT EXISTS dict_full (
     word       TEXT PRIMARY KEY COLLATE NOCASE,
     payload    TEXT NOT NULL,                    -- 完整查词结果的 JSON
@@ -101,9 +120,56 @@ def cursor():
         conn.close()
 
 
+DEFAULT_BOOK_NAME = "我的词库"
+
+
 def init() -> None:
     with cursor() as conn:
         conn.executescript(SCHEMA)
+    migrate_books()
+
+
+def migrate_books() -> dict:
+    """把「所有单词平铺」升级成「多词库」。**可重复运行**，跑第二遍什么都不做。
+
+    做法（全程不改 words 表本身，出问题随时能退回来）：
+      1. 建 books / book_words（由 SCHEMA 完成）
+      2. 没有默认词库就建一个「我的词库」
+      3. 把还没有归属的单词全部挂到默认词库下
+    """
+    created = attached = 0
+    with cursor() as conn:
+        row = conn.execute(
+            "SELECT id FROM books WHERE is_default = 1 ORDER BY id LIMIT 1"
+        ).fetchone()
+        if row:
+            default_id = row["id"]
+        else:
+            row = conn.execute("SELECT id FROM books ORDER BY id LIMIT 1").fetchone()
+            if row:
+                default_id = row["id"]
+                conn.execute("UPDATE books SET is_default = 1 WHERE id = ?", (default_id,))
+            else:
+                cur = conn.execute(
+                    "INSERT INTO books (name, sort, is_default, builtin, created_at) "
+                    "VALUES (?, 0, 1, '', ?)",
+                    (DEFAULT_BOOK_NAME, now()),
+                )
+                default_id = cur.lastrowid
+                created = 1
+
+        # 还没归属的单词 → 挂到默认词库
+        orphans = conn.execute(
+            "SELECT id FROM words WHERE id NOT IN (SELECT word_id FROM book_words)"
+        ).fetchall()
+        for o in orphans:
+            conn.execute(
+                "INSERT OR IGNORE INTO book_words (book_id, word_id, added_at) VALUES (?, ?, ?)",
+                (default_id, o["id"], now()),
+            )
+            attached += 1
+
+    return {"default_book_id": default_id, "created_book": created, "attached_words": attached}
 
 
 def backup(keep: int = 10) -> str | None:
@@ -131,25 +197,175 @@ def backup(keep: int = 10) -> str | None:
     return str(target)
 
 
+# ---------------------------------------------------------------- 词库
+
+def list_books() -> list[dict]:
+    """所有词库，默认词库排最前，其余按 sort、id。"""
+    with cursor() as conn:
+        rows = conn.execute(
+            """SELECT b.id, b.name, b.sort, b.is_default, b.builtin, b.created_at,
+                      (SELECT COUNT(*) FROM book_words w WHERE w.book_id = b.id) AS count
+                 FROM books b
+                ORDER BY b.is_default DESC, b.sort ASC, b.id ASC"""
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_book(bid: int) -> dict | None:
+    with cursor() as conn:
+        row = conn.execute("SELECT * FROM books WHERE id = ?", (bid,)).fetchone()
+    return dict(row) if row else None
+
+
+def default_book() -> dict | None:
+    with cursor() as conn:
+        row = conn.execute(
+            "SELECT * FROM books ORDER BY is_default DESC, id ASC LIMIT 1"
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def add_book(name: str, builtin: str = "") -> int:
+    """新建词库。名字重复会抛 sqlite3.IntegrityError，交给上层转成友好提示。"""
+    name = (name or "").strip()
+    with cursor() as conn:
+        cur = conn.execute(
+            "INSERT INTO books (name, sort, is_default, builtin, created_at) VALUES (?, ?, 0, ?, ?)",
+            (name, 100, builtin, now()),
+        )
+    return cur.lastrowid
+
+
+def rename_book(bid: int, name: str) -> bool:
+    with cursor() as conn:
+        conn.execute("UPDATE books SET name = ? WHERE id = ?", ((name or "").strip(), bid))
+    return True
+
+
+def delete_book(bid: int) -> int:
+    """删词库：**只删归属关系，单词本身和其他词库都不受影响**。
+
+    默认词库不给删（要删得先把别的设为默认），否则单词会无家可归。
+    返回删掉的归属条数。
+    """
+    with cursor() as conn:
+        row = conn.execute("SELECT is_default FROM books WHERE id = ?", (bid,)).fetchone()
+        if not row:
+            return 0
+        if row["is_default"]:
+            raise ValueError("默认词库不能删除")
+        n = conn.execute("SELECT COUNT(*) FROM book_words WHERE book_id = ?", (bid,)).fetchone()[0]
+        conn.execute("DELETE FROM book_words WHERE book_id = ?", (bid,))
+        conn.execute("DELETE FROM books WHERE id = ?", (bid,))
+    return n
+
+
+def set_default_book(bid: int) -> bool:
+    with cursor() as conn:
+        conn.execute("UPDATE books SET is_default = 0")
+        conn.execute("UPDATE books SET is_default = 1 WHERE id = ?", (bid,))
+    return True
+
+
+def book_of_word(wid: int) -> list[dict]:
+    """这个词属于哪几个词库（词库里显示用）。"""
+    with cursor() as conn:
+        rows = conn.execute(
+            "SELECT b.id, b.name FROM books b JOIN book_words w ON w.book_id = b.id "
+            "WHERE w.word_id = ? ORDER BY b.is_default DESC, b.id ASC",
+            (wid,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def attach_word(bid: int, wid: int) -> bool:
+    """把一个词挂到某个词库下。已经有了就返回 False（不算错）。"""
+    with cursor() as conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO book_words (book_id, word_id, added_at) VALUES (?, ?, ?)",
+            (bid, wid, now()),
+        )
+        return cur.rowcount > 0
+
+
+def detach_word(bid: int, wid: int) -> bool:
+    """把词从某个词库里移出（**不删单词本身**）。"""
+    with cursor() as conn:
+        cur = conn.execute("DELETE FROM book_words WHERE book_id = ? AND word_id = ?", (bid, wid))
+        return cur.rowcount > 0
+
+
+def import_words(items: list[dict], book_id: int) -> dict:
+    """把一批词导入某个词库。
+
+    - **已经在库里的词不重复建**，只加一条归属关系（掌握度、学习记录全部沿用）
+    - 新词才真正插入
+    - 全程一个事务，几千个词也很快
+
+    返回 {added, attached, total}
+    """
+    added = attached = 0
+    stamp = now()
+    with cursor() as conn:
+        for it in items:
+            en = (it.get("en") or "").strip()
+            if not en:
+                continue
+            row = conn.execute(
+                "SELECT id FROM words WHERE en = ? COLLATE NOCASE", (en,)
+            ).fetchone()
+            if row:
+                wid = row["id"]
+            else:
+                cur = conn.execute(
+                    "INSERT INTO words (en, cn, pos, ph, note, created_at) VALUES (?,?,?,?,?,?)",
+                    (en, it.get("cn", ""), it.get("pos", ""), it.get("ph", ""), "", stamp),
+                )
+                wid = cur.lastrowid
+                added += 1
+            cur = conn.execute(
+                "INSERT OR IGNORE INTO book_words (book_id, word_id, added_at) VALUES (?, ?, ?)",
+                (book_id, wid, stamp),
+            )
+            if cur.rowcount:
+                attached += 1
+    return {"added": added, "attached": attached, "total": len(items)}
+
+
+def book_word_ids(bid: int) -> set[int]:
+    with cursor() as conn:
+        rows = conn.execute("SELECT word_id FROM book_words WHERE book_id = ?", (bid,)).fetchall()
+    return {r["word_id"] for r in rows}
+
+
 # ---------------------------------------------------------------- 单词
 
-def list_words(q: str = "", sort: str = "created", page: int = 1, size: int = 100):
+def list_words(q: str = "", sort: str = "created", page: int = 1, size: int = 100,
+               book_id: int | None = None):
+    """列出单词。给了 book_id 就只列那个词库里的。"""
     order = {
-        "created": "created_at DESC, id DESC",
-        "mastery": "mastery ASC, id ASC",
-        "mastery_desc": "mastery DESC, id ASC",
-        "alpha": "en COLLATE NOCASE ASC",
-        "wrong": "wrong_cnt DESC, id ASC",
-    }.get(sort, "created_at DESC, id DESC")
-    where, args = "", []
+        "created": "w.created_at DESC, w.id DESC",
+        "mastery": "w.mastery ASC, w.id ASC",
+        "mastery_desc": "w.mastery DESC, w.id ASC",
+        "alpha": "w.en COLLATE NOCASE ASC",
+        "wrong": "w.wrong_cnt DESC, w.id ASC",
+    }.get(sort, "w.created_at DESC, w.id DESC")
+
+    joins, where, args = "", [], []
+    if book_id:
+        joins = "JOIN book_words bw ON bw.word_id = w.id AND bw.book_id = ?"
+        args.append(book_id)
     if q.strip():
-        where = "WHERE en LIKE ? OR cn LIKE ?"
+        where.append("(w.en LIKE ? OR w.cn LIKE ?)")
         like = f"%{q.strip()}%"
-        args = [like, like]
+        args += [like, like]
+    clause = ("WHERE " + " AND ".join(where)) if where else ""
+
     with cursor() as conn:
-        total = conn.execute(f"SELECT COUNT(*) FROM words {where}", args).fetchone()[0]
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM words w {joins} {clause}", args).fetchone()[0]
         rows = conn.execute(
-            f"SELECT * FROM words {where} ORDER BY {order} LIMIT ? OFFSET ?",
+            f"SELECT w.* FROM words w {joins} {clause} ORDER BY {order} LIMIT ? OFFSET ?",
             args + [size, (page - 1) * size],
         ).fetchall()
     return [dict(r) for r in rows], total
@@ -167,8 +383,12 @@ def find_word(en: str) -> dict | None:
     return dict(row) if row else None
 
 
-def add_word(en: str, cn: str = "", pos: str = "", ph: str = "", note: str = "") -> int | None:
-    """新增单词。已存在（不分大小写）则返回 None，不覆盖已有数据。"""
+def add_word(en: str, cn: str = "", pos: str = "", ph: str = "", note: str = "",
+             book_id: int | None = None) -> int | None:
+    """新增单词。已存在（不分大小写）则返回 None，不覆盖已有数据。
+
+    给了 book_id 就顺手挂到那个词库下（新词才有意义；已存在的词要用 attach_word）。
+    """
     en = en.strip()
     if not en:
         return None
@@ -177,7 +397,13 @@ def add_word(en: str, cn: str = "", pos: str = "", ph: str = "", note: str = "")
             "INSERT OR IGNORE INTO words (en, cn, pos, ph, note, created_at) VALUES (?,?,?,?,?,?)",
             (en, cn.strip(), pos.strip(), ph.strip(), note.strip(), now()),
         )
-        return cur.lastrowid if cur.rowcount else None
+        new_id = cur.lastrowid if cur.rowcount else None
+        if book_id and new_id:
+            conn.execute(
+                "INSERT OR IGNORE INTO book_words (book_id, word_id, added_at) VALUES (?, ?, ?)",
+                (book_id, new_id, now()),
+            )
+        return new_id
 
 
 def update_word(wid: int, **fields) -> bool:
@@ -215,21 +441,26 @@ def delete_word(wid: int) -> bool:
     return cur.rowcount > 0
 
 
-def pick_pool() -> list[dict]:
+def pick_pool(book_id: int | None = None) -> list[dict]:
     """抽词池：只取有中文释义的词（没释义就出不了题）。
 
     顺带带出「今天已经考过几次」——抽词时会用它压低当天重复出现的概率
     （同一天反复背同一个词，记忆还没淡，掌握度却涨得快，没意义）。
     """
+    sql = """SELECT w.id, w.en, w.cn, w.pos, w.ph, w.mastery,
+                    (SELECT COUNT(*) FROM answers a
+                      WHERE a.word_id = w.id AND substr(a.at, 1, 10) = ?) AS today_asked
+               FROM words w
+               {join}
+              WHERE w.cn IS NOT NULL AND TRIM(w.cn) <> ''"""
+    args: list = [today()]
+    if book_id:
+        sql = sql.format(join="JOIN book_words bw ON bw.word_id = w.id AND bw.book_id = ?")
+        args.append(book_id)
+    else:
+        sql = sql.format(join="")
     with cursor() as conn:
-        rows = conn.execute(
-            """SELECT w.id, w.en, w.cn, w.pos, w.ph, w.mastery,
-                      (SELECT COUNT(*) FROM answers a
-                        WHERE a.word_id = w.id AND substr(a.at, 1, 10) = ?) AS today_asked
-                 FROM words w
-                WHERE w.cn IS NOT NULL AND TRIM(w.cn) <> ''""",
-            (today(),),
-        ).fetchall()
+        rows = conn.execute(sql, args).fetchall()
     return [dict(r) for r in rows]
 
 

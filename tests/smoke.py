@@ -120,8 +120,9 @@ def main() -> int:
         check("首次导入 8 个词（表头被跳过）", r.get("added") == 8, r)
         _, r2 = call("POST", "/api/words/import", {"text": SAMPLE})
         check("重复导入全部去重", r2.get("added") == 0 and r2.get("skipped") == 8, r2)
-        code, _ = call("POST", "/api/words", {"en": "UBIQUITOUS", "cn": "重复"})
-        check("大小写不同的同一单词被拒绝", code == 409, code)
+        code, rr = call("POST", "/api/words", {"en": "UBIQUITOUS", "cn": "重复"})
+        check("大小写不同的同一单词不会被新建（不覆盖已有释义）",
+              code == 200 and rr.get("existing") is True, (code, rr))
 
         _, r3 = call("POST", "/api/words", {"en": "zephyr", "cn": ""})
         check("可以加一个没释义的词", r3.get("id") is not None, r3)
@@ -138,6 +139,78 @@ def main() -> int:
         # 关键：清缓存不能碰词库（这里已经导入过词，total 必须还在）
         _, st_w = call("GET", "/api/stats")
         check("清缓存没有动到词库", st_w.get("total", 0) >= 8, st_w.get("total"))
+
+        print("\n— 多词库 —")
+        _, bk = call("GET", "/api/books")
+        check("有一个默认词库", len(bk.get("items", [])) == 1 and bk["items"][0]["is_default"] == 1, bk)
+        check("默认词库叫「我的词库」", bk["items"][0]["name"] == "我的词库", bk["items"][0]["name"])
+        dft_id = bk["default_id"]
+
+        _, nb = call("POST", "/api/books", {"name": "四级词汇", "builtin": "CET4"})
+        check("能新建词库", nb.get("id"), nb)
+        book2 = nb["id"]
+        code, _ = call("POST", "/api/books", {"name": "四级词汇"})
+        check("重名词库被拒（409）", code == 409, code)
+
+        # 把已有单词加进新词库（不新建单词）
+        _, one = call("GET", "/api/words?size=1")
+        wid = one["items"][0]["id"]
+        en = one["items"][0]["en"]
+        _, at = call("POST", "/api/books/attach", {"book_id": book2, "word_id": wid})
+        check(f"「{en}」加进了四级词库", at.get("added") is True, at)
+        _, at2 = call("POST", "/api/books/attach", {"book_id": book2, "word_id": wid})
+        check("重复加不重复插", at2.get("added") is False, at2)
+        _, wb = call("GET", f"/api/words/{wid}/books")
+        check("它同时属于 2 个词库", len(wb.get("items", [])) == 2, wb)
+
+        # 抽词只从指定词库抽
+        _, cnt_dft = call("GET", f"/api/words?size=500&book_id={dft_id}")
+        n_dft = min(5, cnt_dft["total"])
+        _, s_dft = call("POST", "/api/session/start", {"size": 5, "book_id": dft_id})
+        check(f"默认词库能抽词（抽到 {s_dft.get('count')} 个）",
+              s_dft.get("count") == n_dft, s_dft)
+        call("POST", "/api/session/finish", {"session_id": s_dft["session_id"]})
+
+        # 四级词库里只有刚挂进去的那 1 个词，还未必有释义 → 只要不是抽到别的词库的就行
+        code, s_one = call("POST", "/api/session/start", {"size": 5, "book_id": book2})
+        if code == 200:
+            check(f"四级词库只抽到自己的词（{s_one.get('count')} 个）",
+                  s_one.get("count") <= 1, s_one)
+            call("POST", "/api/session/finish", {"session_id": s_one["session_id"]})
+        else:
+            check("四级词库抽不出词时会明确报错（而不是退回去抽别的词库）",
+                  "四级词汇" in str(s_one.get("detail", "")), s_one)
+
+        # 列表按词库筛
+        _, lw_all = call("GET", "/api/words?size=500")
+        _, lw_2 = call("GET", f"/api/words?size=500&book_id={book2}")
+        check(f"全部 {lw_all['total']} 个 / 四级 {lw_2['total']} 个",
+              lw_2["total"] == 1 and lw_all["total"] > 1, (lw_all["total"], lw_2["total"]))
+
+        # 移出词：只删归属
+        _, dt = call("POST", "/api/books/detach", {"book_id": book2, "word_id": wid})
+        check("移出词库成功", dt.get("removed") is True, dt)
+        _, lw_2b = call("GET", f"/api/words?size=500&book_id={book2}")
+        check("四级词库空了", lw_2b["total"] == 0, lw_2b["total"])
+        _, lw_all2 = call("GET", "/api/words?size=500")
+        check("单词本身还在（没被删）", lw_all2["total"] == lw_all["total"], lw_all2["total"])
+
+        # 删词库：只删归属
+        call("POST", "/api/books/attach", {"book_id": book2, "word_id": wid})
+        _, db_del = call("DELETE", f"/api/books/{book2}")
+        check("删词库返回清了 1 条归属", db_del.get("removed") == 1, db_del)
+        _, lw_all3 = call("GET", "/api/words?size=500")
+        check("单词仍在", lw_all3["total"] == lw_all["total"], lw_all3["total"])
+
+        # 默认词库保护
+        code, _ = call("DELETE", f"/api/books/{dft_id}")
+        check("默认词库不给删（400）", code == 400, code)
+
+        # 内置词表清单（只列，不导入）
+        _, vc = call("GET", "/api/vocab")
+        keys = [v["key"] for v in vc.get("items", [])]
+        check(f"词表清单有 {len(keys)} 个：{keys}", "CET4" in keys and "NPEE" in keys, keys)
+        check("词表默认不导入（要自己点）", True)
 
         print("\n— 抽词 —")
         _, st = call("POST", "/api/session/start", {"size": 5})

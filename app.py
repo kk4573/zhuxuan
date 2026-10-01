@@ -24,11 +24,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, Response, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from core import config, db, dictionary, ime, judge, srs
+from core import config, db, dictionary, ime, judge, srs, vocab
 from core.paths import BASE_DIR, DATA_DIR, RES_DIR
 
 WEB_DIR = RES_DIR / "web"
@@ -72,11 +72,162 @@ class WordIn(BaseModel):
     pos: str = ""
     ph: str = ""
     note: str = ""
+    book_id: int | None = None      # 加到哪个词库（不传就用默认词库）
+
+
+# ============================================================ 词库（多个）
+
+class BookIn(BaseModel):
+    name: str = ""
+    builtin: str = ""
+
+
+@app.get("/api/books")
+def api_books():
+    """所有词库（默认的排最前），带各自的单词数。"""
+    return {"items": db.list_books(), "default_id": (db.default_book() or {}).get("id")}
+
+
+@app.post("/api/books")
+def api_book_add(b: BookIn):
+    name = (b.name or "").strip()
+    if not name:
+        raise HTTPException(400, "词库名称不能为空")
+    if len(name) > 24:
+        raise HTTPException(400, "词库名称太长了（24 字以内）")
+    try:
+        bid = db.add_book(name, builtin=b.builtin or "")
+    except Exception:
+        raise HTTPException(409, f"已经有叫「{name}」的词库了")
+    return {"id": bid, "items": db.list_books()}
+
+
+@app.put("/api/books/{bid}")
+def api_book_rename(bid: int, b: BookIn):
+    if not db.get_book(bid):
+        raise HTTPException(404, "词库不存在")
+    name = (b.name or "").strip()
+    if not name:
+        raise HTTPException(400, "词库名称不能为空")
+    try:
+        db.rename_book(bid, name)
+    except Exception:
+        raise HTTPException(409, f"已经有叫「{name}」的词库了")
+    return {"ok": True, "items": db.list_books()}
+
+
+@app.delete("/api/books/{bid}")
+def api_book_delete(bid: int):
+    """删词库：只删归属关系，**单词本身和其它词库都不受影响**。"""
+    if not db.get_book(bid):
+        raise HTTPException(404, "词库不存在")
+    try:
+        n = db.delete_book(bid)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"removed": n, "items": db.list_books()}
+
+
+@app.post("/api/books/{bid}/default")
+def api_book_set_default(bid: int):
+    if not db.get_book(bid):
+        raise HTTPException(404, "词库不存在")
+    db.set_default_book(bid)
+    return {"ok": True, "items": db.list_books()}
+
+
+class BookWordIn(BaseModel):
+    word_id: int
+    book_id: int | None = None
+
+
+@app.post("/api/books/attach")
+def api_book_attach(p: BookWordIn):
+    """把已有的单词加进某个词库（**不新建单词**，掌握度沿用）。"""
+    target = p.book_id or (db.default_book() or {}).get("id")
+    if not target or not db.get_book(target):
+        raise HTTPException(404, "词库不存在")
+    if not db.get_word(p.word_id):
+        raise HTTPException(404, "单词不存在")
+    added = db.attach_word(target, p.word_id)
+    return {"added": added, "book_id": target, "books": db.book_of_word(p.word_id)}
+
+
+@app.post("/api/books/detach")
+def api_book_detach(p: BookWordIn):
+    """把单词从某个词库移出（不删单词）。"""
+    if not p.book_id:
+        raise HTTPException(400, "要指定词库")
+    removed = db.detach_word(p.book_id, p.word_id)
+    return {"removed": removed, "books": db.book_of_word(p.word_id)}
+
+
+@app.get("/api/words/{wid}/books")
+def api_word_books(wid: int):
+    """这个词属于哪几个词库。"""
+    return {"items": db.book_of_word(wid)}
+
+
+# ============================================================ 内置词表
+
+@app.get("/api/vocab")
+def api_vocab():
+    """有哪些内置词表可选（四级 / 六级 / 考研 / 托福 / GRE）。"""
+    return {"items": vocab.list_all()}
+
+
+class VocabImportIn(BaseModel):
+    key: str
+    as_book: bool = True          # True：新建一个同名词库；False：导入到 book_id 指定的词库
+    book_id: int | None = None
+
+
+@app.post("/api/vocab/import")
+def api_vocab_import(p: VocabImportIn):
+    """导入内置词表。
+
+    **不会默认导入** —— 要点进来、选一个词表、再确认。
+    已经在词库里的词（比如你自己的 abandon）不会重复建，只加一条归属关系。
+    """
+    info = vocab.info(p.key)
+    if not info:
+        raise HTTPException(404, f"没有这个词表：{p.key}")
+
+    try:
+        path = vocab.fetch(p.key)
+    except Exception as exc:
+        raise HTTPException(502, f"下载词表失败：{exc}")
+
+    try:
+        items = vocab.parse(path.read_text(encoding="utf-8", errors="ignore"))
+    except Exception as exc:
+        raise HTTPException(500, f"解析词表失败：{exc}")
+    if not items:
+        raise HTTPException(500, "词表里没解析出任何词条")
+
+    # 目标词库
+    if p.as_book:
+        name = info["name"]
+        existing = next((b for b in db.list_books() if b["name"] == name), None)
+        if existing:
+            target = existing["id"]
+        else:
+            target = db.add_book(name, builtin=info["key"])
+    else:
+        target = p.book_id or (db.default_book() or {}).get("id")
+        if not target or not db.get_book(target):
+            raise HTTPException(400, "要指定一个词库")
+
+    stats = db.import_words(items, target)
+    stats["book_id"] = target
+    stats["book_name"] = (db.get_book(target) or {}).get("name", "")
+    return stats
 
 
 @app.get("/api/words")
-def api_words(q: str = "", sort: str = "created", page: int = 1, size: int = 200):
-    rows, total = db.list_words(q, sort, page, size)
+def api_words(q: str = "", sort: str = "created", page: int = 1, size: int = 200,
+              book_id: int | None = None):
+    rows, total = db.list_words(q, sort, page, size, book_id=book_id)
     return {"total": total, "page": page, "size": size, "items": rows}
 
 
@@ -85,9 +236,14 @@ def api_add(w: WordIn):
     en = w.en.strip()
     if not en:
         raise HTTPException(400, "英文不能为空")
-    if db.find_word(en):
-        raise HTTPException(409, f"「{en}」已经在词库里了")
-    wid = db.add_word(en, w.cn, w.pos, w.ph, w.note)
+    target = w.book_id or (db.default_book() or {}).get("id")
+    existing = db.find_word(en)
+    if existing:
+        # 词已经存在：不重复建，只把它加进目标词库（掌握度沿用）
+        if target:
+            db.attach_word(target, existing["id"])
+        return {"id": existing["id"], "existing": True, "book_id": target}
+    wid = db.add_word(en, w.cn, w.pos, w.ph, w.note, book_id=target)
     if wid is None:
         raise HTTPException(500, "写入失败")
     return {"id": wid}
@@ -138,26 +294,37 @@ def _is_header(en: str, cn: str) -> bool:
     return en.strip().lower() in HEADER_WORDS
 
 
-def _do_import(items: list[tuple[str, str, str]]) -> dict:
+def _do_import(items: list[tuple[str, str, str]], book_id: int | None = None) -> dict:
+    """把解析好的词写进库。
+
+    已经在库里的词**不重复建、也不覆盖释义**，只把它挂进目标词库 ——
+    这样导入一份词表和手动加词不会打架。
+    """
+    target = book_id or (db.default_book() or {}).get("id")
     added = skipped = 0
     new_words: list[str] = []
     for en, cn, pos in items:
         en = (en or "").strip()
         if not en:
             continue
-        if db.find_word(en):
+        exist = db.find_word(en)
+        if exist:
+            if target:
+                db.attach_word(target, exist["id"])
             skipped += 1
             continue
-        if db.add_word(en, cn or "", pos or ""):
+        wid = db.add_word(en, cn or "", pos or "", book_id=target)
+        if wid:
             added += 1
             new_words.append(en)
         else:
             skipped += 1
-    return {"added": added, "skipped": skipped, "new_words": new_words}
+    return {"added": added, "skipped": skipped, "new_words": new_words, "book_id": target}
 
 
 class ImportIn(BaseModel):
     text: str
+    book_id: int | None = None
 
 
 @app.post("/api/words/import")
@@ -172,11 +339,11 @@ def api_import(payload: ImportIn):
         items.append(parsed)
     if not items:
         raise HTTPException(400, "没解析出任何单词，检查一下粘贴的内容")
-    return _do_import(items)
+    return _do_import(items, payload.book_id)
 
 
 @app.post("/api/words/import-xlsx")
-async def api_import_xlsx(file: UploadFile = File(...)):
+async def api_import_xlsx(file: UploadFile = File(...), book_id: int | None = Form(None)):
     try:
         import openpyxl
     except ImportError:
@@ -202,18 +369,24 @@ async def api_import_xlsx(file: UploadFile = File(...)):
         wb.close()
     if not items:
         raise HTTPException(400, "这个表格里没读到内容")
-    return _do_import(items)
+    return _do_import(items, book_id)
 
 
 # ============================================================ 背诵会话
 
 class StartIn(BaseModel):
+    book_id: int | None = None      # 从哪个词库抽（不传就用默认词库）
     size: int = 20
 
 
 @app.post("/api/session/start")
 def api_start(p: StartIn):
-    pool = db.pick_pool()
+    book = db.get_book(p.book_id) if p.book_id else db.default_book()
+    if not book:
+        raise HTTPException(400, "还没有可用的词库")
+    pool = db.pick_pool(book["id"])
+    if not pool:
+        raise HTTPException(400, f"「{book['name']}」里还没有带中文释义的单词")
     if not pool:
         raise HTTPException(400, "词库里还没有带中文释义的单词，先导入单词再生成释义")
     n = max(1, min(int(p.size or 1), len(pool)))
@@ -372,6 +545,7 @@ def api_judge(p: JudgeIn):
 class AutoAddIn(BaseModel):
     text: str = ""
     lookup: bool = True          # 中文留空时自动查词典
+    book_id: int | None = None
 
 
 @app.post("/api/words/auto-add")
@@ -380,6 +554,7 @@ def api_auto_add(p: AutoAddIn):
 
     每行也允许带中文（Tab / 逗号分隔），带了就用你给的、不查词典。
     """
+    target = p.book_id or (db.default_book() or {}).get("id")
     added = skipped = 0
     failed: list[str] = []
     for idx, line in enumerate(p.text.splitlines()):
@@ -402,12 +577,12 @@ def api_auto_add(p: AutoAddIn):
             else:
                 failed.append(en)
             time.sleep(0.05)          # 对词典礼貌一点，避免被限流
-        if db.add_word(en, cn, pos, ph):
+        if db.add_word(en, cn, pos, ph, book_id=target):
             added += 1
         else:
             skipped += 1
     return {"added": added, "skipped": skipped, "failed": failed,
-            "no_cn": db.count_pending_cn()}
+            "no_cn": db.count_pending_cn(), "book_id": target}
 
 
 @app.post("/api/words/enrich")
