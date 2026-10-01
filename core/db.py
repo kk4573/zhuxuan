@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -53,6 +54,12 @@ CREATE INDEX IF NOT EXISTS idx_answers_at ON answers(at);
 CREATE INDEX IF NOT EXISTS idx_answers_word ON answers(word_id);
 
 -- 查过的词在这里留一份，二次查询不再联网，断网也能用
+CREATE TABLE IF NOT EXISTS dict_full (
+    word       TEXT PRIMARY KEY COLLATE NOCASE,
+    payload    TEXT NOT NULL,                    -- 完整查词结果的 JSON
+    fetched_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS dict_cache (
     word       TEXT PRIMARY KEY COLLATE NOCASE,
     cn         TEXT NOT NULL DEFAULT '',
@@ -274,6 +281,36 @@ def dict_get(word: str) -> dict | None:
             (word.strip(),),
         ).fetchone()
     return dict(row) if row else None
+
+
+def dict_full_get(word: str) -> dict | None:
+    """取一份缓存的完整查词结果（查词页用）。"""
+    with cursor() as conn:
+        row = conn.execute(
+            "SELECT payload, fetched_at FROM dict_full WHERE word = ? COLLATE NOCASE",
+            ((word or "").strip(),),
+        ).fetchone()
+    if not row:
+        return None
+    try:
+        data = json.loads(row["payload"])
+    except Exception:
+        return None
+    data["_cached_at"] = row["fetched_at"]
+    return data
+
+
+def dict_full_put(word: str, payload: dict) -> None:
+    with cursor() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO dict_full (word, payload, fetched_at) VALUES (?, ?, ?)",
+            ((word or "").strip(), json.dumps(payload, ensure_ascii=False), now()),
+        )
+
+
+def dict_full_count() -> int:
+    with cursor() as conn:
+        return conn.execute("SELECT COUNT(*) FROM dict_full").fetchone()[0]
 
 
 def dict_put(word: str, cn: str, pos: str, ph: str, source: str = "youdao") -> None:

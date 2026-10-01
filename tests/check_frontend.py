@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 
 # JS 运行时才生成的元素（弹层里点出来的按钮），HTML 里本来就没有
-DYNAMIC_IDS = {"againBtn", "toLibBtn", "otherAddBtn"}
+DYNAMIC_IDS = {"againBtn", "toLibBtn", "otherAddBtn", "lookSpk", "lookAddBtn", "lookRefresh"}
 # 通过字符串参数引用、不走 $('#x') 的 id
 STRING_REF_IDS = {"editMsg", "importMsg", "settingsMsg"}
 
@@ -58,6 +58,14 @@ def main() -> int:
     unused = sorted(html_ids - js_ids - DYNAMIC_IDS - STRING_REF_IDS)
     check("HTML 里的 id 都被用上了（无笔误残留）", not unused, unused)
 
+    # 每个标签(data-view)都要有对应的页面容器，否则点进去是一片空白
+    views = set(re.findall(r'data-view="([^"]+)"', html))
+    sections = set(re.findall(r'id="view-([^"]+)"', html))
+    check(f"每个标签都有对应页面（{'/'.join(sorted(views))}）",
+          views <= sections, sorted(views - sections))
+    check("每个页面都有标签可以进入",
+          sections <= views, sorted(sections - views))
+
     # 静态资源（注意 /js/base.js 这种以 / 开头的是站点根路径，不是绝对文件路径）
     for src in re.findall(r'(?:src|href)="([^"]+)"', html):
         if src.startswith(("http", "//", "#", "data:")):
@@ -94,7 +102,8 @@ def main() -> int:
                 "prevBtn", "prevModal", "prevBody", "prevOlder", "prevClose", "prevCursor",
                 "retypeWrap", "retypeInput", "retypeMsg",
                 "settingsBtn", "settingsModal", "settingsOk", "settingsCancel",
-                "setIme", "setKey", "setAccent", "setDecay", "cfgPath"):
+                "setIme", "setKey", "setAccent", "setDecay", "cfgPath",
+                "lookInput", "lookBtn", "lookClear", "lookResult", "lookHint"):
         check(f"关键元素 #{sel} 存在", sel in html_ids)
 
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")

@@ -13,6 +13,7 @@
   <nav class="tabs">
     <button class="tab active" data-view="study">开始背</button>
     <button class="tab" data-view="lib">词库</button>
+    <button class="tab" data-view="look">查词</button>
   </nav>
   <div class="hud" id="hud"></div>
   <button class="iconbtn" id="settingsBtn" title="设置">⚙</button>
@@ -107,6 +108,23 @@
       </div>
     </div>
     <div class="listfoot" id="listFoot"></div>
+  </section>
+
+
+  <!-- ==================== 查词 ==================== -->
+  <section class="view" id="view-look" hidden>
+    <div class="tools">
+      <div class="searchbox">
+        <input autocomplete="off" spellcheck="false" name="word-query" id="lookInput"
+               placeholder="输入英文单词，回车查询…">
+        <button class="clearbtn" id="lookClear" title="清空" hidden>×</button>
+      </div>
+      <button class="primary" id="lookBtn">查询</button>
+    </div>
+    <div class="lookhint" id="lookHint">
+      查一个词的完整资料：音标、释义、例句、短语搭配、同义词、词形变化，以及柯林斯 / 词源等更多内容。查过一次就会存在本机，之后秒回、断网也能看。
+    </div>
+    <div id="lookResult"></div>
   </section>
 
   <button class="gotop" id="goTop" title="回到最顶部">↑</button>
@@ -236,6 +254,7 @@
   <script src="/js/study.js"></script>
   <script src="/js/lib.js"></script>
   <script src="/js/settings.js"></script>
+  <script src="/js/look.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

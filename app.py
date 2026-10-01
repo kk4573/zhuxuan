@@ -333,6 +333,28 @@ def api_check_word(p: CheckWordIn):
     }
 
 
+class FullLookupIn(BaseModel):
+    en: str = ""
+    force: bool = False        # 绕过缓存重新联网查
+
+
+@app.post("/api/lookup/full")
+def api_lookup_full(p: FullLookupIn):
+    """查词页：一个词的完整信息。
+
+    音标、释义、考纲标签、双语例句、短语搭配、同义词、词形变化，
+    以及「更多」里的柯林斯星级释义 / 英英 / 词源 / 报刊例句 / 影视例句 / 网络释义。
+    顺带告诉前端这个词在不在词库里、掌握度多少。
+    """
+    r = dictionary.lookup_full(p.en, force=p.force)
+    if r.get("ok"):
+        ex = db.find_word(r["en"])
+        r["in_library"] = bool(ex)
+        r["word_id"] = ex["id"] if ex else None
+        r["mastery"] = ex["mastery"] if ex else None
+    return r
+
+
 class JudgeIn(BaseModel):
     answer: str
     typed: str

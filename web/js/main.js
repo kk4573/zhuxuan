@@ -18,6 +18,7 @@ function init() {
   bindStudy();
   bindLib();
   bindSettings();
+  bindLook();
 
 
   // 首次加载

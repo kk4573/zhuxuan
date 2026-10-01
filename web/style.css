@@ -383,3 +383,111 @@ select.setnum{width:110px;text-align:left;font-family:inherit;cursor:pointer;pad
 .otherword .otherpos{color:var(--accent)}
 .otherword .link{margin-left:auto;white-space:nowrap}
 .otherword[hidden]{display:none}
+
+/* ==================== 查词页 ==================== */
+
+.lookhint{
+  margin:22px 0;padding:16px 18px;border-radius:12px;
+  background:var(--card);border:1px solid var(--line);
+  color:var(--dim);font-size:12.5px;line-height:1.85;
+}
+.lookhint[hidden]{display:none}
+
+.lookwait{
+  padding:26px 18px;color:var(--dim);font-size:13px;text-align:center;
+}
+.lookwait b{color:var(--fg)}
+.lookwait.bad{color:var(--bad)}
+
+.lookcard{
+  margin-top:18px;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:20px 22px 14px;
+}
+
+.looktop{
+  display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;
+  padding-bottom:14px;border-bottom:1px solid var(--line);
+}
+.looktitle{flex:1;min-width:220px}
+.looktitle h2{
+  margin:0;font-size:25px;font-weight:650;letter-spacing:.3px;
+  display:flex;align-items:center;gap:10px;
+}
+.lookph{margin-top:7px;display:flex;align-items:baseline;gap:14px;font-family:Consolas,monospace}
+.lookph span{color:var(--fg);font-size:13.5px}
+.lookph em{color:var(--dim);font-style:normal;font-size:11.5px}
+
+.lookside{display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+.looktags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.looktags span{
+  padding:2px 9px;border-radius:20px;font-size:11.5px;
+  color:var(--accent);background:rgba(110,168,254,.12);
+  border:1px solid rgba(110,168,254,.3);
+}
+.inlib{color:var(--ok);font-size:12.5px;padding:6px 2px}
+.looktags .more-tag{color:var(--dim);border-color:var(--line);background:transparent;cursor:help}
+
+.looksec{margin-top:16px}
+.looksec h5{
+  margin:0 0 9px;font-size:12.5px;font-weight:700;color:#aab3c6;letter-spacing:.8px;
+}
+.lookcn{font-size:14px;line-height:1.85;color:var(--fg)}
+
+.sent{padding:9px 0;border-top:1px dashed var(--line)}
+.looksec .sent:first-of-type{border-top:none;padding-top:2px}
+.sent-en{font-size:14px;line-height:1.72;color:var(--fg)}
+.sent-en .hl{color:var(--accent);font-weight:700}
+.sent-cn{font-size:13.5px;line-height:1.7;color:#c2cad9;margin-top:3px}
+.sent-src{font-size:11.5px;color:#7b849b;margin-top:4px}
+
+.lookphrs div,.lookforms div{
+  display:flex;align-items:baseline;gap:10px;
+  padding:5px 0;font-size:13px;
+}
+.lookphrs b{color:var(--fg);font-weight:600}
+.lookphrs span{color:var(--dim);font-size:12.5px}
+.lookforms em,.syno em{color:var(--accent);font-style:normal;font-size:12px;flex:none}
+.lookforms b{color:var(--fg);font-weight:600}
+
+.syno{display:flex;align-items:baseline;gap:10px;padding:5px 0;font-size:13px;flex-wrap:wrap}
+.syno-w{color:var(--fg)}
+
+.lookmore{
+  margin-top:18px;border-top:1px solid var(--line);padding-top:12px;
+}
+.lookmore summary{
+  cursor:pointer;color:var(--accent);font-size:12.5px;user-select:none;
+  list-style:none;
+}
+.lookmore summary::-webkit-details-marker{display:none}
+.lookmore summary::before{content:'▸ ';}
+.lookmore[open] summary::before{content:'▾ ';}
+.morebody{margin-top:10px}
+.morebody h6{
+  margin:16px 0 7px;font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.6px;
+}
+.morebody h6:first-child{margin-top:4px}
+.col{padding:9px 0;border-top:1px dashed var(--line)}
+.col:first-of-type{border-top:none}
+.col-head{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+.col-head em{color:var(--accent);font-style:normal;font-size:12px}
+.star{color:var(--warn);font-size:12px;letter-spacing:1px}
+.col-tran{font-size:13px;line-height:1.75;color:var(--fg)}
+.ee{font-size:13px;line-height:1.75;color:var(--fg);padding:6px 0}
+.ee em{color:var(--accent);font-style:normal;font-size:12px}
+.ee-ex{color:var(--dim);font-size:12.5px;margin-top:3px}
+.etym{font-size:12.5px;line-height:1.8;color:var(--dim);padding:4px 0}
+
+.lookfoot{
+  margin-top:16px;padding-top:11px;border-top:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+  color:#5f6879;font-size:11.5px;
+}
+
+/* 查词页：加词按钮做成主按钮（它才是这一页的主要动作） */
+.lookside .link{
+  background:var(--accent);color:#0f1117;font-weight:600;
+  padding:7px 15px;border-radius:9px;text-decoration:none;font-size:12.5px;
+}
+.lookside .link:hover{background:#8bbcff}
+.lookside .link:disabled{opacity:.6;cursor:default}

@@ -146,8 +146,10 @@ function showView(v) {
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === v));
   $('#view-study').hidden = v !== 'study';
   $('#view-lib').hidden = v !== 'lib';
+  $('#view-look').hidden = v !== 'look';
   if (v === 'lib') { loadWords(); if (S.phase === 'quiz') setIme(false); }
   syncGoTop();
+  if (v === 'look') setTimeout(() => $('#lookInput').focus(), 0);
   if (v === 'study' && S.phase === 'quiz') {
     setIme(true);                     // 从词库切回来要重新锁英文（离开时被还原成中文了）
     setTimeout(() => $('#qInput').focus(), 0);

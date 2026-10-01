@@ -126,6 +126,32 @@ def main() -> int:
           bool(hit2) and hit2.get("source") == "miss", hit2)
     cfg_mod._cache = saved_cache
 
+    print("\n— 查词页用的完整信息 lookup_full —")
+    # 这几个词的字段形态各不相同（有道同一个字段会给出不同结构），专门拿它们当哨兵
+    for w in ("intact", "abandon", "desert", "mingle"):
+        f = dictionary.lookup_full(w, force=True)
+        check(f"{w}：查得到", f.get("ok"), f.get("reason"))
+        if not f.get("ok"):
+            continue
+        check(f"{w}：有音标", bool(f.get("ph_us") or f.get("ph")), f.get("ph_us"))
+        check(f"{w}：有释义", bool(f.get("cn")), f.get("cn"))
+        check(f"{w}：有双语例句", len(f.get("sents") or []) >= 1, f.get("sents"))
+        check(f"{w}：例句带中文翻译",
+              any((s.get("cn") or "") for s in (f.get("sents") or [])), f.get("sents"))
+        # ↓ 这条是给「字段形态不稳定」留的哨兵：曾经因为 headword 是嵌套对象而整块解析成空
+        check(f"{w}：短语解析出了内容（不是空壳）",
+              all(p.get("en") for p in (f.get("phrs") or [])), f.get("phrs"))
+        check(f"{w}：同义词解析出了内容（不是空壳）",
+              all(s.get("words") for s in (f.get("synos") or [])), f.get("synos"))
+        check(f"{w}：词形变化解析出了内容",
+              all(x.get("en") for x in (f.get("forms") or [])), f.get("forms"))
+        check(f"{w}：「更多」里有内容", bool(f.get("more")), list((f.get("more") or {}).keys()))
+
+    hit = dictionary.lookup_full("intact")
+    check("第二次查走本地缓存", hit.get("source") == "本地缓存", hit.get("source"))
+    check("缓存里也保住了例句", len(hit.get("sents") or []) >= 1)
+    check("查不到的词如实返回", dictionary.lookup_full("zzzznotarealword9").get("ok") is False)
+
     print("\n— 真人发音 —")
     audio = dictionary.fetch_audio("apple")
     check(f"拿到 apple 音频 {len(audio) if audio else 0} 字节", bool(audio) and len(audio) > 512)
