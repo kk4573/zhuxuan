@@ -7,6 +7,7 @@ async function openSettings() {
     const c = await api('GET', '/api/config');
     $('#setIme').checked = !!c.force_english_ime;
     $('#setAccent').value = c.audio_accent || 'us';
+    $('#setDecay').value = (c.today_decay === undefined ? 1 : c.today_decay);
     $('#setKey').value = '';
     $('#setKey').placeholder = c.deepseek_ready ? '已配置（留空则保持不变）' : 'sk-…（留空则不用 AI 兜底）';
     $('#cfgPath').textContent = c.config_path;
@@ -19,7 +20,9 @@ async function saveSettings() {
   const body = {
     force_english_ime: $('#setIme').checked,
     audio_accent: $('#setAccent').value,
+    today_decay: parseFloat($('#setDecay').value),
   };
+  if (!isFinite(body.today_decay)) body.today_decay = 1;
   const key = $('#setKey').value.trim();
   if (key) body.deepseek_api_key = key;
   try {

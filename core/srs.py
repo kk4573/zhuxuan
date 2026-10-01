@@ -25,19 +25,24 @@ MASTERED_LINE = 10          # 显示上算"精通"的门槛（内部数值继续
 TODAY_DECAY = 1.0
 
 
-def weight(mastery: int, today_asked: int = 0) -> float:
+def weight(mastery: int, today_asked: int = 0, today_decay: float | None = None) -> float:
     """抽中权重 = 掌握度权重 ÷ 当天已考惩罚。
 
-    掌握度 0、今天还没考过 → 1.000
-    掌握度 0、今天考过 1 次 → 0.500
-    掌握度 0、今天考过 3 次 → 0.250
+    掌握度 0、今天还没考过   → 1.000
+    掌握度 0、今天考过 1 次  → 0.500   （系数为 1 时）
+    掌握度 0、今天考过 3 次  → 0.250
+
+    `today_decay` 由调用方从设置里传进来（界面上可以调）；不传就用模块默认值。
     """
+    decay = TODAY_DECAY if today_decay is None else max(0.0, float(today_decay))
     base = 1.0 / (1.0 + max(0, int(mastery))) ** WEIGHT_POW
-    penalty = 1.0 + max(0, int(today_asked or 0)) * TODAY_DECAY
+    if decay <= 0:
+        return base                     # 关掉抑制
+    penalty = 1.0 + max(0, int(today_asked or 0)) * decay
     return base / penalty
 
 
-def pick(pool: list[dict], n: int) -> list[dict]:
+def pick(pool: list[dict], n: int, today_decay: float | None = None) -> list[dict]:
     """按权重无放回地抽 n 个词。
 
     用 Efraimidis-Spirakis 加权抽样：给每个词生成 key = log(u) / w，
@@ -52,7 +57,7 @@ def pick(pool: list[dict], n: int) -> list[dict]:
         return picked
     keyed = []
     for row in pool:
-        w = weight(row["mastery"], row.get("today_asked", 0))
+        w = weight(row["mastery"], row.get("today_asked", 0), today_decay)
         u = random.uniform(1e-12, 1.0)
         keyed.append((math.log(u) / w, row))
     keyed.sort(key=lambda t: t[0], reverse=True)     # 越大越优先

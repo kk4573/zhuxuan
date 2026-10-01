@@ -17,9 +17,23 @@ DEFAULTS = {
     "deepseek_base_url": "https://api.deepseek.com",
     "deepseek_model": "deepseek-chat",
     "audio_accent": "us",               # 发音口音：us / uk
+    # 当天已考过的词降权系数：权重 ÷ (1 + 当天已考次数 × today_decay)
+    # 0 = 不抑制；1 = 考过一次权重减半；越大抑制越强
+    "today_decay": 1.0,
 }
 
+DECAY_MIN, DECAY_MAX = 0.0, 5.0
+
 _cache: dict | None = None
+
+
+def clamp_decay(value) -> float:
+    """把「当天重复抑制强度」夹到合理范围，坏值退回默认。"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return float(DEFAULTS["today_decay"])
+    return min(DECAY_MAX, max(DECAY_MIN, round(v, 2)))
 
 
 def load(force: bool = False) -> dict:
@@ -63,6 +77,7 @@ def public_view() -> dict:
         "force_english_ime": bool(d["force_english_ime"]),
         "audio_accent": d["audio_accent"],
         "deepseek_model": d["deepseek_model"],
+        "today_decay": clamp_decay(d.get("today_decay")),
         "deepseek_ready": bool(key),
         "deepseek_hint": "已配置" if key else "",
         "config_path": str(CONFIG_PATH),

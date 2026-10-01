@@ -99,6 +99,18 @@ def main() -> int:
             print("服务没起来，放弃")
             return 2
 
+        print("\n— 设置项：改得动、存得下、越界有夹取 —")
+        _, cfg0 = call("GET", "/api/config")
+        check("配置接口带 today_decay", "today_decay" in cfg0, list(cfg0.keys()))
+        check("API Key 只回传「配没配」", "deepseek_api_key" not in cfg0)
+        call("PUT", "/api/config", {"today_decay": 2.5})
+        _, cfg1 = call("GET", "/api/config")
+        check("改成 2.5 后重新读还是 2.5（落盘了）", cfg1.get("today_decay") == 2.5, cfg1.get("today_decay"))
+        call("PUT", "/api/config", {"today_decay": 99})
+        _, cfg2 = call("GET", "/api/config")
+        check("填 99 被夹到上限 5", cfg2.get("today_decay") == 5.0, cfg2.get("today_decay"))
+        call("PUT", "/api/config", {"today_decay": cfg0.get("today_decay", 1.0)})   # 还原
+
         print("\n— 统计 —")
         _, s = call("GET", "/api/stats")
         check("空词库 total = 0", s.get("total") == 0, s)

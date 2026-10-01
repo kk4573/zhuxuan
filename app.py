@@ -217,7 +217,7 @@ def api_start(p: StartIn):
     if not pool:
         raise HTTPException(400, "词库里还没有带中文释义的单词，先导入单词再生成释义")
     n = max(1, min(int(p.size or 1), len(pool)))
-    picked = srs.pick(pool, n)
+    picked = srs.pick(pool, n, today_decay=config.clamp_decay(config.get("today_decay")))
     random.shuffle(picked)                     # 抽完再打乱出题顺序
     session_id = db.create_session(len(picked))
     return {"session_id": session_id, "count": len(picked), "items": picked}
@@ -434,6 +434,7 @@ class ConfigIn(BaseModel):
     deepseek_api_key: str | None = None
     deepseek_model: str | None = None
     audio_accent: str | None = None
+    today_decay: float | None = None      # 当天重复抑制强度（0~5）
 
 
 @app.put("/api/config")
