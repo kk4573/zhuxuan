@@ -481,6 +481,18 @@ def api_ime_status():
     return {**ime.status(), "enabled": bool(config.get("force_english_ime"))}
 
 
+@app.get("/api/cache")
+def api_cache_info():
+    """查词缓存有多少条（设置页显示用）。"""
+    return {"count": db.dict_full_count()}
+
+
+@app.delete("/api/cache")
+def api_cache_clear():
+    """清空查词缓存。只删 dict_full 这张表 —— 词库和学习记录不受影响。"""
+    return {"removed": db.dict_full_clear()}
+
+
 @app.post("/api/quit")
 def api_quit():
     """退出竹喧：先关掉应用窗口，再结束后台服务（省得用户再点一次 ×）。"""

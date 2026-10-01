@@ -11,6 +11,7 @@ async function openSettings() {
     $('#setKey').value = '';
     $('#setKey').placeholder = c.deepseek_ready ? '已配置（留空则保持不变）' : 'sk-…（留空则不用 AI 兜底）';
     $('#cfgPath').textContent = c.config_path;
+    loadCacheCount();
     msg('#settingsMsg', '');
     $('#settingsModal').hidden = false;
   } catch (e) { toast('读取设置失败：' + e.message, 'bad'); }
@@ -34,6 +35,18 @@ async function saveSettings() {
 }
 
 
+async function loadCacheCount() {
+  const el = $('#cacheCount');
+  if (!el) return;
+  try {
+    const r = await api('GET', '/api/cache');
+    el.textContent = r.count;
+  } catch (e) {
+    el.textContent = '—';
+  }
+}
+
+
 /* ==================== 设置 / 退出的绑定 ==================== */
 
 function bindSettings() {
@@ -43,6 +56,26 @@ function bindSettings() {
   $('#settingsCancel').onclick = () => { $('#settingsModal').hidden = true; };
   $('#settingsOk').onclick = saveSettings;
   $('#setKey').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSettings(); });
+
+  // 清空查词缓存（只清缓存，词库和学习记录不动）
+  $('#clearCache').onclick = async () => {
+    const n = $('#cacheCount').textContent;
+    const yes = await askConfirm('清空查词缓存',
+      '将删除本机缓存的 ' + n + ' 个查词结果。\n词库、掌握度、学习记录都不会受影响；' +
+      '这些词下次查询时会重新联网取。', '清空');
+    if (!yes) return;
+    const btn = $('#clearCache');
+    btn.disabled = true;
+    try {
+      const r = await api('DELETE', '/api/cache');
+      toast('已清空 ' + r.removed + ' 条查词缓存', 'ok');
+      loadCacheCount();
+    } catch (e) {
+      toast('清空失败：' + e.message, 'bad');
+    } finally {
+      btn.disabled = false;
+    }
+  };
 
   // 退出应用
   $('#quitBtn').onclick = async () => {

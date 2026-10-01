@@ -313,6 +313,14 @@ def dict_full_count() -> int:
         return conn.execute("SELECT COUNT(*) FROM dict_full").fetchone()[0]
 
 
+def dict_full_clear() -> int:
+    """清空查词缓存。**只动 dict_full**，词库、答题记录、释义缓存一概不碰。"""
+    with cursor() as conn:
+        n = conn.execute("SELECT COUNT(*) FROM dict_full").fetchone()[0]
+        conn.execute("DELETE FROM dict_full")
+    return n
+
+
 def dict_put(word: str, cn: str, pos: str, ph: str, source: str = "youdao") -> None:
     with cursor() as conn:
         conn.execute(

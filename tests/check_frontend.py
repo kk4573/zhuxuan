@@ -103,7 +103,8 @@ def main() -> int:
                 "retypeWrap", "retypeInput", "retypeMsg",
                 "settingsBtn", "settingsModal", "settingsOk", "settingsCancel",
                 "setIme", "setKey", "setAccent", "setDecay", "cfgPath",
-                "lookInput", "lookBtn", "lookClear", "lookResult", "lookHint"):
+                "lookInput", "lookBtn", "lookClear", "lookResult", "lookHint",
+                "clearCache", "cacheCount"):
         check(f"关键元素 #{sel} 存在", sel in html_ids)
 
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")

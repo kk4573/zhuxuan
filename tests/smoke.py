@@ -128,6 +128,17 @@ def main() -> int:
         _, s2 = call("GET", "/api/stats")
         check("统计里标出未生成释义的词", s2.get("no_cn") == 1, s2)
 
+        print("\n— 查词缓存（设置页那个「清空」）—")
+        _, c0 = call("GET", "/api/cache")
+        check("能读到缓存条数", isinstance(c0.get("count"), int), c0)
+        _, cl = call("DELETE", "/api/cache")
+        check("清空返回删了几条", isinstance(cl.get("removed"), int), cl)
+        _, c1 = call("GET", "/api/cache")
+        check("清空后条数为 0", c1.get("count") == 0, c1)
+        # 关键：清缓存不能碰词库（这里已经导入过词，total 必须还在）
+        _, st_w = call("GET", "/api/stats")
+        check("清缓存没有动到词库", st_w.get("total", 0) >= 8, st_w.get("total"))
+
         print("\n— 抽词 —")
         _, st = call("POST", "/api/session/start", {"size": 5})
         items = st.get("items", [])
