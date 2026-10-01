@@ -164,27 +164,52 @@
 
 <!-- ==================== 设置 ==================== -->
 <div class="modal" id="settingsModal" hidden>
-  <div class="modalbox">
+  <div class="modalbox setbox">
     <h3>设置</h3>
-    <div class="setrow">
-      <label class="switcher"><input autocomplete="off" spellcheck="false" type="checkbox" id="setIme"><span>答题时自动切到英文输入法（离开时还原）</span></label>
-      <p class="dim">切换的是窗口的输入语言，所以答题时你**其它的 Edge 窗口也会一起变成英文**。不用就关掉。</p>
+
+    <div class="setgroup">
+      <h4>答题</h4>
+
+      <div class="setrow">
+        <div class="sethead">
+          <span class="setname">自动切换英文输入法</span>
+          <label class="switch"><input autocomplete="off" type="checkbox" id="setIme"><i></i></label>
+        </div>
+        <p class="dim">答题开始切英文、结束切回中文，免得中文输入法把字母吃掉。切换作用于整个窗口，所以你其它的 Edge&nbsp;窗口也会一起变。</p>
+      </div>
+
+      <div class="setrow">
+        <div class="sethead">
+          <span class="setname">同一天重复出题的抑制强度</span>
+          <input autocomplete="off" spellcheck="false" class="setnum" id="setDecay" type="number" min="0" max="5" step="0.5" value="1">
+        </div>
+        <p class="dim">同一天里已经考过的词，当天再开新一轮时会少出现 —— 避免记忆还没淡就重复刷分。取值 <b>0</b>–<b>5</b>：<b>0</b> 不抑制，<b>1</b> 打对折（默认），越大抑制越强。隔天自动恢复。</p>
+      </div>
     </div>
-    <div class="setrow">
-      <label>DeepSeek API Key</label>
-      <input autocomplete="off" spellcheck="false" id="setKey"  placeholder="sk-…">
-      <p class="dim">词典里查不到的词交给它生成释义。密钥只存在本机（保存在 <span id="cfgPath">config.json</span>），不会外传。</p>
+
+    <div class="setgroup">
+      <h4>释义与发音</h4>
+
+      <div class="setrow">
+        <div class="sethead">
+          <span class="setname">DeepSeek API Key</span>
+          <input autocomplete="off" spellcheck="false" class="setnum wide" id="setKey" placeholder="sk-…">
+        </div>
+        <p class="dim">词典里查不到的词（新词、缩写、专有名词）交给它生成释义。填了才启用；密钥只存在本机 <span id="cfgPath">config.json</span>，不会外传。</p>
+      </div>
+
+      <div class="setrow">
+        <div class="sethead">
+          <span class="setname">发音口音</span>
+          <select class="setnum" id="setAccent">
+          <option value="us">美音</option>
+            <option value="uk">英音</option>
+          </select>
+        </div>
+        <p class="dim">点朗读按钮时用的口音。</p>
+      </div>
     </div>
-    <div class="setrow">
-      <label>同一天重复出题的抑制强度</label>
-      <input autocomplete="off" spellcheck="false" id="setDecay" type="number" min="0" max="5" step="0.5" value="1">
-      <p class="dim">同一天里已经考过的词，当天再开新一轮时会少出现，避免记忆还没淡就重复刷分。
-        <b>0</b> = 不抑制；<b>1</b> = 考过一次权重减半（默认）；数字越大抑制越强（最大 5）。隔天自动恢复。</p>
-    </div>
-    <div class="setrow">
-      <label>发音口音</label>
-      <select id="setAccent"><option value="us">美音</option><option value="uk">英音</option></select>
-    </div>
+
     <div class="modalact">
       <button class="link" id="settingsCancel">关闭</button>
       <button class="primary" id="settingsOk">保存</button>

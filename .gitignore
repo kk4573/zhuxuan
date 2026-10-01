@@ -25,3 +25,6 @@ backups_系统设置/
 
 # 手工备份（有 git 之后就不需要了）
 web/*.bak-*
+
+# 界面截图（临时产物）
+tests/screenshots/
