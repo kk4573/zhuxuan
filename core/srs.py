@@ -3,10 +3,11 @@
 核心思想：越不熟的词，被抽到的概率越高；越熟的词出现得越少，但永远不会是 0
 （保证生僻词、久未复习的词不会被漏掉）。
 
-    权重 = 1 / (1 + 掌握度) ^ WEIGHT_POW
+    权重 = 1 / (1 + 掌握度) ^ WEIGHT_POW ÷ (1 + 当天已考次数 × TODAY_DECAY)
 
     掌握度  0    1     2     3    5     8     10
     权重   1.00 0.35  0.19  0.13 0.065 0.032 0.022
+    （上表是当天还没考过时；当天考过一次就再打对折）
 """
 from __future__ import annotations
 
@@ -18,9 +19,22 @@ WEIGHT_POW = 1.5
 
 MASTERED_LINE = 10          # 显示上算"精通"的门槛（内部数值继续涨，不封顶）
 
+# 同一天里，考过一次的词权重就除以 (1 + 次数 × 这个系数)。
+# 一天内反复抽到同一个词，记忆还没淡，掌握度却涨得飞快 —— 这个系数就是压它的。
+# 设 0 等于关掉这个机制。
+TODAY_DECAY = 1.0
 
-def weight(mastery: int) -> float:
-    return 1.0 / (1.0 + max(0, int(mastery))) ** WEIGHT_POW
+
+def weight(mastery: int, today_asked: int = 0) -> float:
+    """抽中权重 = 掌握度权重 ÷ 当天已考惩罚。
+
+    掌握度 0、今天还没考过 → 1.000
+    掌握度 0、今天考过 1 次 → 0.500
+    掌握度 0、今天考过 3 次 → 0.250
+    """
+    base = 1.0 / (1.0 + max(0, int(mastery))) ** WEIGHT_POW
+    penalty = 1.0 + max(0, int(today_asked or 0)) * TODAY_DECAY
+    return base / penalty
 
 
 def pick(pool: list[dict], n: int) -> list[dict]:
@@ -38,7 +52,7 @@ def pick(pool: list[dict], n: int) -> list[dict]:
         return picked
     keyed = []
     for row in pool:
-        w = weight(row["mastery"])
+        w = weight(row["mastery"], row.get("today_asked", 0))
         u = random.uniform(1e-12, 1.0)
         keyed.append((math.log(u) / w, row))
     keyed.sort(key=lambda t: t[0], reverse=True)     # 越大越优先

@@ -327,7 +327,7 @@ td.ops .link{margin-left:10px}
 
 /* 回到最顶部的小悬浮球：滑下去一段才露面 */
 .gotop{
-  position:fixed;right:28px;bottom:28px;z-index:30;
+  position:fixed;right:28px;bottom:78px;z-index:30;   /* 抬高一点，别压住列表底部的翻页条 */
   width:44px;height:44px;border-radius:50%;
   background:var(--card);border:1px solid var(--line);color:var(--fg);
   font-size:19px;line-height:1;padding:0;

@@ -148,7 +148,10 @@ function showView(v) {
   $('#view-lib').hidden = v !== 'lib';
   if (v === 'lib') { loadWords(); if (S.phase === 'quiz') setIme(false); }
   syncGoTop();
-  if (v === 'study' && S.phase === 'quiz') setTimeout(() => $('#qInput').focus(), 0);
+  if (v === 'study' && S.phase === 'quiz') {
+    setIme(true);                     // 从词库切回来要重新锁英文（离开时被还原成中文了）
+    setTimeout(() => $('#qInput').focus(), 0);
+  }
 }
 
 function showPhase(p) {

@@ -209,11 +209,19 @@ def delete_word(wid: int) -> bool:
 
 
 def pick_pool() -> list[dict]:
-    """抽词池：只取有中文释义的词（没释义就出不了题）。"""
+    """抽词池：只取有中文释义的词（没释义就出不了题）。
+
+    顺带带出「今天已经考过几次」——抽词时会用它压低当天重复出现的概率
+    （同一天反复背同一个词，记忆还没淡，掌握度却涨得快，没意义）。
+    """
     with cursor() as conn:
         rows = conn.execute(
-            "SELECT id, en, cn, pos, ph, mastery FROM words "
-            "WHERE cn IS NOT NULL AND TRIM(cn) <> ''"
+            """SELECT w.id, w.en, w.cn, w.pos, w.ph, w.mastery,
+                      (SELECT COUNT(*) FROM answers a
+                        WHERE a.word_id = w.id AND substr(a.at, 1, 10) = ?) AS today_asked
+                 FROM words w
+                WHERE w.cn IS NOT NULL AND TRIM(w.cn) <> ''""",
+            (today(),),
         ).fetchall()
     return [dict(r) for r in rows]
 
