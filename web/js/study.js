@@ -220,13 +220,13 @@ async function finishSession(early) {
   html += '<div class="sumline">总共作答 <b>' + S.asked + '</b> 次　·　已掌握 <b>' +
           S.done.size + '</b> / ' + total + '</div>';
   if (S.wrongWords.length) {
-    html += '<div class="sumline" style="margin-top:16px">以下单词未能一次答对，其掌握度已下调，后续出现频率会提高：</div>';
+    html += '<div class="sumline" style="margin-top:16px">以下单词掌握度已下调，之后会更常出现：</div>';
     html += '<div class="wronglist">' + S.wrongWords.map(esc).join('　') + '</div>';
   } else if (total) {
     html += '<div class="sumline" style="margin-top:16px;color:var(--ok)">全部一次答对。</div>';
   }
   html += '<div class="sumact"><button class="primary" id="againBtn">再来一轮</button>' +
-          '<button class="link" id="toLibBtn">去词库看看</button></div></div>';
+          '<button class="link" id="toLibBtn">去词库</button></div></div>';
 
   $('#study-done').innerHTML = html;
   showPhase('done');

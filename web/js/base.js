@@ -187,7 +187,7 @@ function renderReadyHint() {
   const s = S.stats;
   if (!s) return;
   if (!s.total) {
-    $('#readyHint').innerHTML = '词库为空，请先在「词库」页导入单词';
+    $('#readyHint').innerHTML = '词库为空，先去「词库」页加词';
     return;
   }
   if (s.total === s.no_cn) {

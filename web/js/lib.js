@@ -63,7 +63,7 @@ function renderWords(r) {
     $('#libEmpty').hidden = false;
     $('#libEmpty').textContent = $('#search').value.trim()
       ? '未找到匹配的单词'
-      : '词库还是空的 —— 点右上角「导入」，把 WPS 里整理好的单词表复制进来';
+      : '词库还是空的，点「导入」把单词放进来';
   } else {
     $('#libEmpty').hidden = true;
     tb.innerHTML = r.items.map((w) =>
@@ -338,7 +338,7 @@ function bindLib() {
         if (bsel && bsel.value) body.book_id = parseInt(bsel.value, 10);
         const res = await api('POST', '/api/words', body);
         if (res && res.existing) {
-          msg('#editMsg', '「' + en + '」已经在词库里了，已把它加进当前词库（释义没动）', 'ok');
+          msg('#editMsg', '「' + en + '」已在词库，已加进当前词库（释义没动）', 'ok');
         }
       }
       if (editingId) {
@@ -371,7 +371,7 @@ function bindLib() {
   $('#importOk').onclick = async () => {
     const text = $('#importText').value;
     const file = $('#xlsxInput').files[0];
-    if (!text.trim() && !file) { msg('#importMsg', '请粘贴单词内容，或选择一个 Excel 文件', 'bad'); return; }
+    if (!text.trim() && !file) { msg('#importMsg', '请粘贴单词，或选一个 Excel 文件', 'bad'); return; }
     $('#importOk').disabled = true;
     msg('#importMsg', '正在导入…');
     try {

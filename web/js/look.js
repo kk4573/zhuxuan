@@ -166,7 +166,7 @@ function lookMore(r) {
   }
 
   if (!parts.length) return '';
-  return '<details class="lookmore"><summary>更多（柯林斯、英英、词源、报刊例句……）</summary>' +
+  return '<details class="lookmore"><summary>更多</summary>' +
     '<div class="morebody">' + parts.join('') + '</div></details>';
 }
 
@@ -192,7 +192,7 @@ function renderLook(r) {
       lookSents(r) + lookPhrs(r) + lookSynos(r) + lookForms(r) +
       lookMore(r) +
       '<div class="lookfoot">来源：' + esc(r.source || '有道词典') +
-        '<button class="link" id="lookRefresh">重新联网查</button></div>' +
+        '<button class="link" id="lookRefresh">重新查</button></div>' +
     '</div>';
 
   const spk = $('#lookSpk');

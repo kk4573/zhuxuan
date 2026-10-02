@@ -199,7 +199,7 @@ async function renderVocabList() {
     '<div class="vocabrow" data-key="' + esc(v.key) + '">' +
       '<div>' +
         '<b>' + esc(v.name) + '</b>' +
-        '<span class="dim">约 ' + v.expect + ' 词' + (v.cached ? '　·　已下载过' : '') + '</span>' +
+        '<span class="dim">约 ' + v.expect + ' 词' + (v.cached ? '　·　已缓存' : '') + '</span>' +
       '</div>' +
       '<button class="mini" data-vkey="' + esc(v.key) + '">导入</button>' +
     '</div>').join('');
@@ -215,8 +215,8 @@ async function importVocab(key, btn) {
   const yes = await askConfirm('导入词表',
     '把「' + v.name + '」（约 ' + v.expect + ' 词）导入' +
     (target ? '词库「' + target.name + '」' : '一个新词库') + '？\n' +
-    '首次导入需要联网下载词表，之后就有本机缓存了。\n' +
-    '已经在词库里的词不会重复添加，它们的掌握度和学习记录都会保留。', '导入');
+    '首次导入需联网下载词表，之后走本机缓存。\n' +
+    '已在词库的词不重复添加，掌握度和记录都保留。', '导入');
   if (!yes) return;
 
   const old = btn.textContent;

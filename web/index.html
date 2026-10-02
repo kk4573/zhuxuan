@@ -25,9 +25,9 @@
   <section class="view" id="view-study">
 
     <div class="phase zen" id="study-ready">
-      <div class="zenhead">从哪个词库背？</div>
+      <div class="zenhead">词库</div>
       <div class="bookpick"><select id="studyBook"></select></div>
-      <div class="zenhead">本轮要背多少个单词？</div>
+      <div class="zenhead">数量</div>
       <div class="sizer">
         <button class="step" data-step="-10">−10</button>
         <button class="step" data-step="-5">−5</button>
@@ -37,7 +37,7 @@
         <button class="step" data-step="5">+5</button>
         <button class="step" data-step="10">+10</button>
       </div>
-      <button class="primary big" id="startBtn">开 始</button>
+      <button class="primary big" id="startBtn">开始</button>
       <p class="hint" id="readyHint"></p>
     </div>
 
@@ -57,7 +57,7 @@
         <div class="fb" id="qFb"></div>
         <div class="otherword" id="otherWord" hidden></div>
         <div class="retype" id="retypeWrap" hidden>
-          <div class="retypeline">跟着打一遍，加深印象　<span class="dim">（打对会变绿，可以反复打几遍；打空着按空格继续）</span></div>
+          <div class="retypeline">跟打一遍　<span class="dim">（打对变绿，可反复打；空着按空格继续）</span></div>
           <input id="retypeInput" autocomplete="off" autocorrect="off" autocapitalize="off"
                  spellcheck="false" placeholder="把正确答案敲一遍…">
           <div class="retypemsg" id="retypeMsg"></div>
@@ -67,7 +67,7 @@
         <span><kbd>Enter</kbd> 提交</span>
         <span><kbd>空格</kbd> 下一个</span>
         <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> 跳过</span>
-        <button class="link" id="prevBtn">↑ 查看上一个</button>
+        <button class="link" id="prevBtn">↑ 上一个</button>
         <button class="link" id="endBtn">结束本轮</button>
       </div>
       <div class="imewarn" id="imeWarn" hidden>检测到中文输入法，请按 <kbd>Shift</kbd> 切换至英文输入</div>
@@ -120,11 +120,11 @@
     <div class="tools">
       <div class="searchbox">
         <input autocomplete="off" spellcheck="false" name="word-query" id="lookInput"
-               placeholder="输入英文单词，回车查询…">
+               placeholder="输入英文单词…">
         <button class="clearbtn" id="lookClear" title="清空" hidden>×</button>
       </div>
       <button class="primary" id="lookBtn">查询</button>
-      <select id="lookBook" title="查到词以后，加进哪个词库"></select>
+      <select id="lookBook" title="加入哪个词库"></select>
     </div>
     <div class="lookhint" id="lookHint">
       查一个词的完整资料：音标、释义、例句、短语搭配、同义词、词形变化，以及柯林斯 / 词源等更多内容。查过一次就会存在本机，之后秒回、断网也能看。
@@ -138,31 +138,30 @@
 <!-- ==================== 导入 ==================== -->
 <div class="modal" id="importModal" hidden>
   <div class="modalbox wide">
-    <h3>导入单词</h3>
+    <h3>导入</h3>
 
     <div class="setrow">
       <div class="sethead">
-        <span class="setname">导入到哪个词库</span>
+        <span class="setname">导入到</span>
         <select class="setnum wide" id="importBook"></select>
       </div>
     </div>
 
-    <div class="blockhead">一、从内置词表导入</div>
+    <div class="blockhead">内置词表</div>
     <div class="vocablist" id="vocabList"></div>
 
-    <div class="blockhead">二、或者粘贴 / 上传自己的单词</div>
+    <div class="blockhead">粘贴导入</div>
     <p class="dim">
-      <b>一行一个英文就够了</b>，中文会自动查词典补上。<br>
-      想自己指定中文也行 —— 英文和中文用 Tab 或逗号隔开（也可以直接拖个 Excel 文件进来）。
+      <b>每行一个英文</b>，自动补中文释义；也可用 Tab / 逗号带上自己的中文。
     </p>
     <textarea id="importText" spellcheck="false" placeholder="abandon&#10;benefit&#10;candidate&#10;curious&#10;&#10;或者自己带中文：&#10;abandon&#9;放弃"></textarea>
     <div class="modalrow">
-      <label class="filebtn">或者选一个 Excel 文件<input autocomplete="off" spellcheck="false" type="file" id="xlsxInput" accept=".xlsx,.xlsm" hidden></label>
+      <label class="filebtn">选择 Excel 文件<input autocomplete="off" spellcheck="false" type="file" id="xlsxInput" accept=".xlsx,.xlsm" hidden></label>
       <span class="dim" id="importFile"></span>
     </div>
     <div class="modalact">
       <button class="link" id="importCancel">取消</button>
-      <button class="primary" id="importOk">导入这些单词</button>
+      <button class="primary" id="importOk">导入</button>
     </div>
     <div class="modalmsg" id="importMsg"></div>
   </div>
@@ -171,12 +170,12 @@
 <!-- ==================== 添加 / 修改 ==================== -->
 <div class="modal" id="editModal" hidden>
   <div class="modalbox">
-    <h3 id="editTitle">添加单词</h3>
+    <h3 id="editTitle">添加</h3>
     <div class="formrow"><label>英文</label><input autocomplete="off" spellcheck="false" id="editEn" ></div>
     <div class="formrow"><label>中文释义</label><input autocomplete="off" spellcheck="false" id="editCn"></div>
     <div class="formrow"><label>词性</label><input autocomplete="off" spellcheck="false" id="editPos" placeholder="adj. / n. / v. / phr."></div>
     <div class="formrow"><label>音标</label><input autocomplete="off" spellcheck="false" id="editPh" ></div>
-    <div class="formrow" id="editBookRow"><label>加入词库</label><select id="addBook"></select></div>
+    <div class="formrow" id="editBookRow"><label>词库</label><select id="addBook"></select></div>
     <div class="modalact">
       <button class="link" id="editCancel">取消</button>
       <button class="primary" id="editOk">保存</button>
@@ -191,7 +190,7 @@
     <h3>上一个单词</h3>
     <div class="prevbody" id="prevBody"></div>
     <div class="modalact">
-      <button class="link" id="prevOlder">← 再往前一个</button>
+      <button class="link" id="prevOlder">← 再往前</button>
       <span class="dim" id="prevCursor" style="margin-right:auto;font-size:12px"></span>
       <button class="primary" id="prevClose">返回答题</button>
     </div>
@@ -203,7 +202,7 @@
   <div class="modalbox confirm">
     <h3>新建词库</h3>
     <div class="setrow">
-      <input autocomplete="off" spellcheck="false" id="newBookName" placeholder="比如：雅思核心、我的生词本">
+      <input autocomplete="off" spellcheck="false" id="newBookName" placeholder="如：雅思核心、生词本">
     </div>
     <div class="modalact">
       <button class="link" id="newBookCancel">取消</button>
@@ -216,7 +215,7 @@
 <!-- ==================== 词库管理 ==================== -->
 <div class="modal" id="bookModal" hidden>
   <div class="modalbox">
-    <h3>词库管理</h3>
+    <h3>词库</h3>
     <div id="bookList"></div>
     <div class="modalact">
       <button class="primary" id="bookClose">关闭</button>
@@ -235,7 +234,7 @@
 
       <div class="setrow">
         <div class="sethead">
-          <span class="setname">自动切换英文输入法</span>
+          <span class="setname">自动切英文输入法</span>
           <label class="switch"><input autocomplete="off" type="checkbox" id="setIme"><i></i></label>
         </div>
         <p class="dim">答题开始切英文、结束切回中文，免得中文输入法把字母吃掉。切换作用于整个窗口，所以你其它的 Edge&nbsp;窗口也会一起变。</p>
@@ -243,7 +242,7 @@
 
       <div class="setrow">
         <div class="sethead">
-          <span class="setname">同一天重复出题的抑制强度</span>
+          <span class="setname">当天重复抑制</span>
           <input autocomplete="off" spellcheck="false" class="setnum" id="setDecay" type="number" min="0" max="5" step="0.5" value="1">
         </div>
         <p class="dim">同一天里已经考过的词，当天再开新一轮时会少出现 —— 避免记忆还没淡就重复刷分。取值 <b>0</b>–<b>5</b>：<b>0</b> 不抑制，<b>1</b> 打对折（默认），越大抑制越强。隔天自动恢复。</p>
@@ -258,7 +257,7 @@
           <span class="setname">DeepSeek API Key</span>
           <input autocomplete="off" spellcheck="false" class="setnum wide" id="setKey" placeholder="sk-…">
         </div>
-        <p class="dim">词典里查不到的词（新词、缩写、专有名词）交给它生成释义。填了才启用；密钥只存在本机 <span id="cfgPath">config.json</span>，不会外传。</p>
+        <p class="dim">词典查不到的词交给它生成释义。填了才启用；密钥只存本机 <span id="cfgPath">config.json</span>，不会外传。</p>
       </div>
 
       <div class="setrow">
@@ -269,7 +268,7 @@
             <option value="uk">英音</option>
           </select>
         </div>
-        <p class="dim">点朗读按钮时用的口音。</p>
+        <p class="dim">朗读时用的口音。</p>
       </div>
     </div>
 
@@ -281,7 +280,7 @@
           <span class="setname">查词缓存</span>
           <button class="link danger" id="clearCache">清空</button>
         </div>
-        <p class="dim">查过的词会存一份在本机，下次查秒回、断网也能看。当前 <b id="cacheCount">—</b> 条。清空只删这些缓存，<b>词库和学习记录不受影响</b>。</p>
+        <p class="dim">查过的词存一份在本机，下次秒回、断网也能看。当前 <b id="cacheCount">—</b> 条。只删缓存，<b>词库和学习记录不受影响</b>。</p>
       </div>
     </div>
 

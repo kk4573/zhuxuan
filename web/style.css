@@ -559,10 +559,11 @@ select.setnum{width:110px;text-align:left;font-family:inherit;cursor:pointer;pad
 /* 词表行里的小按钮（比链接显眼，又不至于抢主按钮的注意力） */
 button.mini{
   flex:none;font-size:12.5px;color:var(--fg);
-  background:#232936;border:1px solid var(--line2);border-radius:8px;
-  padding:6px 14px;cursor:pointer;
+  background:#28303f;border:1px solid #3a4459;border-radius:8px;
+  padding:6px 14px;cursor:pointer;transition:border-color .14s,color .14s;
 }
-button.mini:hover{border-color:var(--accent);color:var(--accent)}
+button.mini:hover{border-color:var(--accent);color:var(--accent);background:#2d3646}
+button.mini:active{background:#232936}
 button.mini:disabled{opacity:.55;cursor:default}
 
 /* 导入弹层里「内置词表」与「自己粘贴」之间的分隔 */
