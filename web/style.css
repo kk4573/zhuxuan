@@ -571,3 +571,33 @@ button.mini:disabled{opacity:.55;cursor:default}
   border-top:1px solid var(--line);padding-top:16px;
 }
 .blockhead:first-of-type{border-top:none;padding-top:0}
+
+/* 导入弹层：内置词表那一行（下拉 + 小按钮） */
+.vocabpick{display:flex;gap:10px;align-items:center;margin:10px 0 8px}
+.vocabpick select{
+  flex:1;min-width:0;font-size:13.5px;padding:9px 11px;
+  background:#232936;border:1px solid var(--line2);border-radius:9px;color:var(--fg);
+}
+.vocabpick select:focus{outline:none;border-color:var(--accent)}
+
+/* 「选择 Excel 文件」做成文字按钮的样子（真正的 input 藏起来） */
+.filebtn{
+  display:inline-block;cursor:pointer;font-size:13px;
+  color:var(--fg);background:#28303f;border:1px solid #3a4459;border-radius:8px;
+  padding:7px 15px;transition:border-color .14s,color .14s;
+}
+.filebtn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* 词库管理弹层里的一行 */
+.bookrow{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 2px;border-bottom:1px solid var(--line);
+}
+.bookrow:last-child{border-bottom:none}
+.bookrow .bname{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bookrow .bmeta{font-size:12.5px;color:var(--muted);flex:none}
+.bookrow .bdft{
+  font-size:11px;color:var(--accent);border:1px solid var(--accent);
+  border-radius:6px;padding:1px 6px;flex:none;
+}
+.bookrow button.link{flex:none;font-size:13px}

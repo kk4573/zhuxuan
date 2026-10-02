@@ -60,6 +60,7 @@ function makeEl(id) {
 }
 
 const listeners = [];
+const elStore = {};   // 让 querySelector 返回同一个元素，才能读回 innerHTML
 const sandbox = {
   console,
   setTimeout, clearTimeout, setInterval, clearInterval,
@@ -69,7 +70,7 @@ const sandbox = {
     body: makeEl('body'),
     documentElement: makeEl('html'),
     activeElement: null,
-    querySelector: (s) => makeEl(s),
+    querySelector: (s) => (elStore[s] = elStore[s] || makeEl(s)),
     querySelectorAll: () => [],
     addEventListener: (t, fn) => listeners.push(['document:' + t, fn]),
     createElement: () => makeEl(),
@@ -138,6 +139,37 @@ for (const fn of ['bindTabs', 'bindCore', 'bindStudy', 'bindLib', 'bindSettings'
 
 // ---------- init 已经被自动调用过（main.js 末尾） ----------
 check('main.js 末尾自动执行了 init()', loaded.includes('main.js'));
+
+
+// ---------- 词库管理弹层：默认词库不能被删 ----------
+console.log('\n— 词库管理弹层的按钮 —');
+try {
+  vm.runInContext(`
+    BOOKS = [
+      { id: 1, name: '我的词库', count: 189, is_default: 1, builtin: '' },
+      { id: 2, name: '考研词汇', count: 5392, is_default: 0, builtin: 'NPEE' },
+    ];
+    renderBookList();
+  `, ctx);
+  const out = sandbox.document.querySelector('#bookList').innerHTML;
+
+  // 拆成行来看各自的按钮
+  const rows = out.split('class="bookrow"').slice(1);
+  const opsOf = (r) => [...r.matchAll(/data-op="(\w+)"/g)].map((m) => m[1]);
+  const rDefault = rows.find((r) => r.includes('我的词库')) || '';
+  const rOther = rows.find((r) => r.includes('考研词汇')) || '';
+  const dOps = opsOf(rDefault), oOps = opsOf(rOther);
+
+  check('默认词库有「默认」标记', rDefault.includes('bdft'));
+  check('默认词库不给「删除」', !dOps.includes('del'), dOps);
+  check('默认词库不给「设为默认」', !dOps.includes('default'), dOps);
+  check('默认词库仍可「改名」', dOps.includes('rename'), dOps);
+  check('普通词库有「删除」', oOps.includes('del'), oOps);
+  check('普通词库有「设为默认」', oOps.includes('default'), oOps);
+  check('内置词表标出来源', rOther.includes('NPEE'));
+} catch (e) {
+  check('词库管理渲染没炸', false, String(e));
+}
 
 console.log(`\n结果：${ok} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);

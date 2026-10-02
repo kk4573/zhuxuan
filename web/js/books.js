@@ -190,21 +190,31 @@ async function loadVocabs() {
 }
 
 async function renderVocabList() {
-  const box = $('#vocabList');
-  if (!box) return;
   await loadVocabs();
+  const sel = $('#vocabSel');
+  const btn = $('#vocabImport');
+  const note = $('#vocabNote');
+  if (!sel) return;
   if (!VOCABS.length) {
-    box.innerHTML = '<span class="dim">读不到词表清单</span>';
+    sel.innerHTML = '<option>读不到词表清单</option>';
+    if (btn) btn.disabled = true;
     return;
   }
-  box.innerHTML = VOCABS.map((v) =>
-    '<div class="vocabrow" data-key="' + esc(v.key) + '">' +
-      '<div>' +
-        '<b>' + esc(v.name) + '</b>' +
-        '<span class="dim">约 ' + v.expect + ' 词' + (v.cached ? '　·　已缓存' : '') + '</span>' +
-      '</div>' +
-      '<button class="mini" data-vkey="' + esc(v.key) + '">导入</button>' +
-    '</div>').join('');
+  const keep = sel.value;
+  sel.innerHTML = VOCABS.map((v) =>
+    '<option value="' + esc(v.key) + '">' +
+      esc(v.name) + '（约 ' + v.expect + ' 词' + (v.cached ? '，已缓存' : '') + '）' +
+    '</option>').join('');
+  if (keep && VOCABS.some((v) => v.key === keep)) sel.value = keep;
+  if (btn) btn.disabled = false;
+
+  // 下面那行小字跟着下拉走，免得多占一行
+  const cur = VOCABS.find((v) => v.key === sel.value);
+  if (note && cur) {
+    note.textContent = cur.cached
+      ? '词表已在本机，导入时不联网。已在词库的词不重复添加。'
+      : '首次导入需联网下载词表。已在词库的词不重复添加。';
+  }
 }
 
 async function importVocab(key, btn) {
@@ -270,11 +280,15 @@ function bindBooks() {
   $('#libBook').onchange = () => { currentPage = 1; loadWords(1, true); };
   $('#studyBook').onchange = () => { renderReadyHint(); };
 
-  // 内置词表：导入按钮也是动态生成的
-  $('#vocabList').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-vkey]');
-    if (btn) importVocab(btn.dataset.vkey, btn);
-  });
+  // 词库管理（改名 / 设为默认 / 删除）——以前没有入口，kk 找不到删除键
+  $('#bookManageBtn').onclick = openBookManage;
+
+  // 内置词表：下拉选一个，再点右边的导入
+  $('#vocabImport').onclick = () => {
+    const key = $('#vocabSel').value;
+    if (key) importVocab(key, $('#vocabImport'));
+  };
+  $('#vocabSel').onchange = () => renderVocabList();
 
   // 打开导入弹层时刷新词表清单
   const origImport = $('#importBtn').onclick;

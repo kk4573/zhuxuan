@@ -354,23 +354,27 @@ function bindLib() {
   $('#editEn').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#editOk').click(); });
 
   // 导入弹层
-  // 导入弹层
   $('#importBtn').onclick = () => {
     $('#importText').value = '';
-    $('#importFile').textContent = '';
-    $('#xlsxInput').value = '';
+    $('#importFile').value = '';
+    const lb = $('#importFile').closest('.filebtn');
+    if (lb && lb.dataset.orig) lb.textContent = lb.dataset.orig;
     msg('#importMsg', '');
     $('#importModal').hidden = false;
     setTimeout(() => $('#importText').focus(), 0);
   };
   $('#importCancel').onclick = () => { $('#importModal').hidden = true; };
-  $('#xlsxInput').onchange = () => {
-    const f = $('#xlsxInput').files[0];
-    $('#importFile').textContent = f ? f.name : '';
+  // 选了文件就把文件名显示在按钮上（还是能点「导入」提交）
+  $('#importFile').onchange = () => {
+    const f = $('#importFile').files[0];
+    const lb = $('#importFile').closest('.filebtn');
+    if (!lb) return;
+    if (!lb.dataset.orig) lb.dataset.orig = lb.textContent.trim();
+    lb.textContent = f ? f.name : lb.dataset.orig;
   };
   $('#importOk').onclick = async () => {
     const text = $('#importText').value;
-    const file = $('#xlsxInput').files[0];
+    const file = $('#importFile').files[0];
     if (!text.trim() && !file) { msg('#importMsg', '请粘贴单词，或选一个 Excel 文件', 'bad'); return; }
     $('#importOk').disabled = true;
     msg('#importMsg', '正在导入…');

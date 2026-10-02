@@ -91,6 +91,7 @@
         <option value="alpha">字母序</option>
         <option value="wrong">错得最多</option>
       </select>
+      <button id="bookManageBtn" title="改名 / 设为默认 / 删除词库">管理</button>
       <button id="newBookBtn" title="新建一个词库">＋ 词库</button>
       <button class="primary" id="addBtn">＋ 添加</button>
       <button id="importBtn">导入</button>
@@ -137,7 +138,7 @@
 
 <!-- ==================== 导入 ==================== -->
 <div class="modal" id="importModal" hidden>
-  <div class="modalbox wide">
+  <div class="modalbox">
     <h3>导入</h3>
 
     <div class="setrow">
@@ -147,21 +148,38 @@
       </div>
     </div>
 
-    <div class="blockhead">内置词表</div>
-    <div class="vocablist" id="vocabList"></div>
-
-    <div class="blockhead">粘贴导入</div>
     <p class="dim">
       <b>每行一个英文</b>，自动补中文释义；也可用 Tab / 逗号带上自己的中文。
     </p>
-    <textarea id="importText" spellcheck="false" placeholder="abandon&#10;benefit&#10;candidate&#10;curious&#10;&#10;或者自己带中文：&#10;abandon&#9;放弃"></textarea>
-    <div class="modalrow">
-      <label class="filebtn">选择 Excel 文件<input autocomplete="off" spellcheck="false" type="file" id="xlsxInput" accept=".xlsx,.xlsm" hidden></label>
-      <span class="dim" id="importFile"></span>
+    <textarea id="importText" spellcheck="false" autocomplete="off"
+placeholder="abandon
+crystal
+constitute
+带中文的话用逗号: abandon,放弃
+"></textarea>
+
+    <div class="setrow">
+      <div class="sethead">
+        <span class="setname">或用 Excel</span>
+        <label class="filebtn">
+          选择 Excel 文件
+          <input type="file" id="importFile" accept=".xlsx,.xls" hidden>
+        </label>
+      </div>
     </div>
+
+    <div class="blockhead">
+      <span>从内置词表导入</span>
+    </div>
+    <div class="vocabpick">
+      <select id="vocabSel"></select>
+      <button class="mini" id="vocabImport">导入</button>
+    </div>
+    <div class="dim" id="vocabNote">不默认导入，需要哪个点哪个；词表自带音标释义，导入时不联网。</div>
+
     <div class="modalact">
       <button class="link" id="importCancel">取消</button>
-      <button class="primary" id="importOk">导入</button>
+      <button class="primary" id="importOk">导入单词</button>
     </div>
     <div class="modalmsg" id="importMsg"></div>
   </div>

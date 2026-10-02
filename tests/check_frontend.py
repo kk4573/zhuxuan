@@ -96,7 +96,7 @@ def main() -> int:
 
     # 关键交互元素
     for sel in ("qInput", "qCn", "qFb", "qSpk", "startBtn", "importOk",
-                "importText", "xlsxInput", "wordBody", "autoTrack", "imeWarn", "listFoot", "listHead", "searchClear", "goTop", "otherWord",
+                "importText", "importFile", "wordBody", "autoTrack", "imeWarn", "listFoot", "listHead", "searchClear", "goTop", "otherWord",
                 "editOk", "editEn", "search", "sort", "sizeInput", "endBtn",
                 "confirmModal", "confirmOk", "confirmCancel", "enrichBtn",
                 "prevBtn", "prevModal", "prevBody", "prevOlder", "prevClose", "prevCursor",
@@ -107,7 +107,7 @@ def main() -> int:
                 "clearCache", "cacheCount",
                 "studyBook", "libBook", "lookBook", "importBook", "addBook",
                 "newBookBtn", "newBookModal", "newBookName", "newBookOk",
-                "newBookCancel", "bookModal", "bookList", "bookClose", "vocabList"):
+                "newBookCancel", "bookModal", "bookList", "bookClose", "vocabSel", "vocabImport", "bookManageBtn"):
         check(f"关键元素 #{sel} 存在", sel in html_ids)
 
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
