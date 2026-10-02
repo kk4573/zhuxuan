@@ -124,6 +124,24 @@ def main() -> int:
             # 只该少 1；如果少 0 说明词库数还停着孤儿归属，少 2 说明清过头了
             check("删词后词库条数 -1（没留孤儿归属）", after == before - 1, f"{before} → {after}")
 
+        print("\n— 释义详细程度设置（接口层）—")
+        _, cfg0 = call("GET", "/api/config")
+        check("设置里能读到 pos_limit", "pos_limit" in cfg0, cfg0)
+        check("设置里能读到 meaning_count", "meaning_count" in cfg0, cfg0)
+
+        # ConfigIn 漏字段的话 PUT 会被静默丢弃 —— 这个坑犯过一次，专门盯一下
+        _, cfg1 = call("PUT", "/api/config", {"pos_limit": 1, "meaning_count": 1})
+        check("PUT 能改 pos_limit", cfg1.get("pos_limit") == 1, cfg1.get("pos_limit"))
+        check("PUT 能改 meaning_count", cfg1.get("meaning_count") == 1, cfg1.get("meaning_count"))
+        check("改了释义风格会清词典缓存", cfg1.get("cn_style_changed") is True)
+
+        _, cfg2 = call("PUT", "/api/config", {"pos_limit": 0, "meaning_count": 2})
+        check("能改回默认", cfg2.get("pos_limit") == 0 and cfg2.get("meaning_count") == 2)
+
+        _, cfg3 = call("PUT", "/api/config", {"pos_limit": 99, "meaning_count": 99})
+        check("超范围的值被夹住", cfg3.get("pos_limit") == 6 and cfg3.get("meaning_count") == 3, cfg3)
+        call("PUT", "/api/config", {"pos_limit": 0, "meaning_count": 2})
+
         print("\n— 统计 —")
         _, s = call("GET", "/api/stats")
         check("空词库 total = 0", s.get("total") == 0, s)

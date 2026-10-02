@@ -210,6 +210,37 @@ def main() -> int:
     r4 = first_sentence("zzzqqq-not-a-word")
     check("查不到的词不抛异常", r4.get("ok") is False, r4)
 
+    print("\n— 释义详细程度可以设置 —")
+    import json as _json
+    import urllib.parse as _up
+    from core.dictionary import JSON_API, _get, _extract
+    raw = _json.loads(_get(JSON_API + "record").decode("utf-8", "ignore"))
+
+    a = _extract(raw, "record", pos_limit=1, meaning_count=2)
+    check("词性限 1 个：只剩第一种词性", "/" not in a["cn"] and a["cn"].startswith("n."), a["cn"])
+
+    b = _extract(raw, "record", pos_limit=2, meaning_count=2)
+    check("词性限 2 个：正好两种", b["cn"].count("/") == 1, b["cn"])
+
+    c = _extract(raw, "record", pos_limit=0, meaning_count=1)
+    check("义项限 1 个：每段只有一条", "；" not in c["cn"], c["cn"])
+
+    d = _extract(raw, "record", pos_limit=0, meaning_count=2)
+    check("默认（全部词性 + 2 义项）比 1 义项长", len(d["cn"]) > len(c["cn"]))
+    check("词性越多释义越长", len(d["cn"]) > len(a["cn"]))
+
+    e = _extract(raw, "record", pos_limit=99, meaning_count=9)
+    check("超范围的值被夹住，不会崩", bool(e and e["cn"]))
+
+    # 设置真的传到了 _extract：改 config 后不带参数调用应该跟着变
+    from core import config as _cfg
+    _cfg.save({"pos_limit": 1, "meaning_count": 1})
+    f = _extract(raw, "record")
+    check("config 改了之后 _extract 默认值跟着变", f["cn"].count("/") == 0, f["cn"])
+    _cfg.save({"pos_limit": 0, "meaning_count": 2})
+    g = _extract(raw, "record")
+    check("改回默认又能看到多种词性", g["cn"].count("/") >= 2, g["cn"])
+
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 

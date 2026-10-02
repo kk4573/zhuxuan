@@ -595,3 +595,11 @@ button.mini:disabled{opacity:.55;cursor:default}
   padding-left:11px;border-left:2px solid #33507f;
 }
 .qsentcn{font-size:13px;color:var(--muted);margin-top:4px;padding-left:11px}
+
+/* 词库表格：点一行能看这个单词的详情，给个手型提示 */
+.wordtable tbody tr{cursor:pointer}
+.wordtable tbody tr:hover{background:#1b2130}
+.wordtable tbody tr td.ops{cursor:default}
+
+/* 设置项下面的说明：限制行宽，一行别太长 */
+.setrow p.dim{max-width:620px}

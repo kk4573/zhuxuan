@@ -8,6 +8,8 @@ async function openSettings() {
     $('#setIme').checked = !!c.force_english_ime;
     $('#setAccent').value = c.audio_accent || 'us';
     $('#setDecay').value = (c.today_decay === undefined ? 1 : c.today_decay);
+    $('#setPosLimit').value = String(c.pos_limit === undefined ? 0 : c.pos_limit);
+    $('#setMeaningCount').value = String(c.meaning_count === undefined ? 2 : c.meaning_count);
     $('#setKey').value = '';
     $('#setKey').placeholder = c.deepseek_ready ? '已配置（留空则保持不变）' : 'sk-…（留空则不用 AI 兜底）';
     $('#cfgPath').textContent = c.config_path;
@@ -22,6 +24,8 @@ async function saveSettings() {
     force_english_ime: $('#setIme').checked,
     audio_accent: $('#setAccent').value,
     today_decay: parseFloat($('#setDecay').value),
+    pos_limit: parseInt($('#setPosLimit').value, 10) || 0,
+    meaning_count: parseInt($('#setMeaningCount').value, 10) || 2,
   };
   if (!isFinite(body.today_decay)) body.today_decay = 1;
   const key = $('#setKey').value.trim();
@@ -30,8 +34,45 @@ async function saveSettings() {
     const c = await api('PUT', '/api/config', body);
     $('#setKey').value = '';
     $('#setKey').placeholder = c.deepseek_ready ? '已配置（留空则保持不变）' : 'sk-…（留空则不用 AI 兜底）';
-    msg('#settingsMsg', '已保存' + (c.deepseek_ready ? '　·　AI 兜底已可用' : ''), 'ok');
+    if (c.cn_style_changed) {
+      msg('#settingsMsg', '已保存。释义详细程度变了 —— 已有单词要点上面的「重新生成释义」才会更新。', 'ok');
+    } else {
+      msg('#settingsMsg', '已保存' + (c.deepseek_ready ? '　·　AI 兜底已可用' : ''), 'ok');
+    }
   } catch (e) { msg('#settingsMsg', e.message, 'bad'); }
+}
+
+
+/**
+ * 按当前的释义详细程度，把所有单词的释义重跑一遍。
+ *
+ * 后端一次只做一批（40 个词，避免一个请求卡太久），这里翻页循环调用，
+ * 顺便在按钮上显示进度。中途可以正常背单词，跑完再刷新词库列表。
+ */
+async function refreshCn() {
+  const btn = $('#setRefreshCn');
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '准备…';
+  let page = 1, done = 0, total = 0;
+  try {
+    for (let guard = 0; guard < 500; guard += 1) {
+      const r = await api('POST', '/api/words/refresh-cn', { page: page, size: 40 });
+      done += r.done || 0;
+      total = r.total || 0;
+      btn.textContent = done + ' / ' + total;
+      if (!r.size || page * r.size >= total || !r.done && !r.failed.length) break;
+      page += 1;
+    }
+    msg('#settingsMsg', '已按新设置重新生成 ' + done + ' 个词的释义', 'ok');
+    toast('释义已更新', 'ok');
+    if (typeof loadWords === 'function') loadWords();
+  } catch (e) {
+    msg('#settingsMsg', '重新生成失败：' + e.message + '（可以再点一次接着跑）', 'bad');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
 }
 
 
@@ -56,6 +97,7 @@ function bindSettings() {
   $('#settingsCancel').onclick = () => { $('#settingsModal').hidden = true; };
   $('#settingsOk').onclick = saveSettings;
   $('#setKey').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSettings(); });
+  $('#setRefreshCn').onclick = refreshCn;
 
   // 清空查词缓存（只清缓存，词库和学习记录不动）
   $('#clearCache').onclick = async () => {

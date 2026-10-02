@@ -591,6 +591,35 @@ def api_auto_add(p: AutoAddIn):
             "no_cn": db.count_pending_cn(), "book_id": target}
 
 
+class RefreshIn(BaseModel):
+    page: int = 1
+    size: int = 30
+    book_id: int | None = None
+
+
+@app.post("/api/words/refresh-cn")
+def api_refresh_cn(p: RefreshIn):
+    """按**当前的释义详细程度设置**重新生成一批释义（跳过缓存、强制重查）。
+
+    释义是在导入/查词那一刻算好存进 words 表的，所以改了设置以后，
+    已有单词的释义不会自己变 —— 得这样跑一遍。前端翻页循环调用，边跑边显示进度。
+    """
+    rows, total = db.list_words(page=p.page, size=p.size, book_id=p.book_id)
+    done = 0
+    failed: list[str] = []
+    for w in rows:
+        info = dictionary.lookup(w["en"], force=True)      # force：不吃旧缓存
+        if info.get("ok") and info.get("cn"):
+            db.update_word(w["id"], cn=info["cn"],
+                           pos=(info.get("pos") or w["pos"]),
+                           ph=(info.get("ph") or w["ph"]))
+            done += 1
+        else:
+            failed.append(w["en"])
+        time.sleep(0.05)
+    return {"done": done, "failed": failed, "total": total, "size": p.size}
+
+
 @app.post("/api/words/enrich")
 def api_enrich(limit: int = 30):
     """给词库里缺中文释义的词补全。每次做一批，前端循环调用并显示进度。
@@ -638,11 +667,20 @@ class ConfigIn(BaseModel):
     deepseek_model: str | None = None
     audio_accent: str | None = None
     today_decay: float | None = None      # 当天重复抑制强度（0~5）
+    pos_limit: int | None = None          # 释义保留几个词性（0 = 全部）
+    meaning_count: int | None = None      # 每个词性保留几个义项（1~3）
 
 
 @app.put("/api/config")
 def api_config_put(p: ConfigIn):
-    return config.save(p.model_dump())
+    before = config.public_view()
+    out = config.save(p.model_dump())
+    # 释义详细程度变了 → 缓存里的释义还是旧编排，清掉让它按新设置重新生成
+    if (before.get("pos_limit") != out.get("pos_limit")
+            or before.get("meaning_count") != out.get("meaning_count")):
+        db.dict_clear_all()
+        out["cn_style_changed"] = True
+    return out
 
 
 class ImeIn(BaseModel):

@@ -306,11 +306,22 @@ function bindLib() {
     });
   });
 
-  // 表格里的 改 / 删
+  // 表格里：点行 = 看这个单词的详细信息（跳查词页）；点「改 / 删」按钮 = 原来的操作
   $('#wordBody').addEventListener('click', async (e) => {
+    const tr = e.target.closest('tr[data-id]');
+    if (!tr) return;
+    const id = parseInt(tr.dataset.id, 10);
     const btn = e.target.closest('button[data-act]');
-    if (!btn) return;
-    const id = parseInt(btn.closest('tr').dataset.id, 10);
+
+    if (!btn) {
+      const w = wordCache[id];
+      if (!w) return;
+      showView('look');                        // 去查词页看完整资料
+      $('#lookInput').value = w.en;
+      doLookup(w.en);
+      return;
+    }
+
     if (btn.dataset.act === 'del') {
       const yes = await askConfirm('删除单词',
         '确定删除「' + (wordCache[id] ? wordCache[id].en : '') + '」？该单词的学习记录将一并删除。',

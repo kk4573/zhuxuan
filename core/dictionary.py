@@ -17,6 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from . import config
 from . import db
 from . import ai as ai_mod
 
@@ -118,7 +119,8 @@ def tilde(word: str, cn: str) -> str:
     return pat.sub("~", cn)
 
 
-def _extract(data: dict, word: str = "") -> dict | None:
+def _extract(data: dict, word: str = "",
+             pos_limit: int | None = None, meaning_count: int | None = None) -> dict | None:
     """把有道返回的 JSON 整理成 {cn, pos, ph}。词典没这个词时返回 None。
 
     编排规则（kk 定的）：
@@ -149,11 +151,19 @@ def _extract(data: dict, word: str = "") -> dict | None:
     if not groups:
         return None
 
+    # 保留几个词性 / 每个词性几个义项 —— 由设置决定（默认 全部 + 前 2 个多留一个）
+    if pos_limit is None:
+        pos_limit = config.clamp_pos_limit(config.get("pos_limit"))
+    if meaning_count is None:
+        meaning_count = config.clamp_meaning_count(config.get("meaning_count"))
+    keep_pos = MAX_POS if not pos_limit else min(pos_limit, MAX_POS)
+
     seen: set[str] = set()
     pos_list: list[str] = []
     chunks: list[str] = []
-    for i, (pos, meanings) in enumerate(groups[:MAX_POS]):
-        want = FULL_MEANINGS if i < FULL_POS else LATER_MEANINGS
+    for i, (pos, meanings) in enumerate(groups[:keep_pos]):
+        # 前 2 个词性按设置来；第 3 个起少留一个，免得释义拖太长
+        want = meaning_count if i < FULL_POS else max(1, meaning_count - 1)
         picked: list[str] = []
         for m in meanings:
             if m[:4] in seen:          # 别的词性里已经出现过，跳过

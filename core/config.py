@@ -20,9 +20,14 @@ DEFAULTS = {
     # 当天已考过的词降权系数：权重 ÷ (1 + 当天已考次数 × today_decay)
     # 0 = 不抑制；1 = 考过一次权重减半；越大抑制越强
     "today_decay": 1.0,
+    # 释义要多详细：保留几个词性（0 = 全留）、每个词性保留几个义项
+    "pos_limit": 0,
+    "meaning_count": 2,
 }
 
 DECAY_MIN, DECAY_MAX = 0.0, 5.0
+POS_LIMIT_MAX = 6                # 和 dictionary.MAX_POS 一致（保险上限）
+MEANING_MIN, MEANING_MAX = 1, 3
 
 _cache: dict | None = None
 
@@ -34,6 +39,26 @@ def clamp_decay(value) -> float:
     except (TypeError, ValueError):
         return float(DEFAULTS["today_decay"])
     return min(DECAY_MAX, max(DECAY_MIN, round(v, 2)))
+
+
+def clamp_pos_limit(value) -> int:
+    """保留几个词性。0（或坏的输入）= 全留。"""
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        return int(DEFAULTS["pos_limit"])
+    if v <= 0:
+        return 0
+    return min(POS_LIMIT_MAX, v)
+
+
+def clamp_meaning_count(value) -> int:
+    """每个词性保留几个义项，1~3。"""
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        return int(DEFAULTS["meaning_count"])
+    return min(MEANING_MAX, max(MEANING_MIN, v))
 
 
 def load(force: bool = False) -> dict:
@@ -78,6 +103,8 @@ def public_view() -> dict:
         "audio_accent": d["audio_accent"],
         "deepseek_model": d["deepseek_model"],
         "today_decay": clamp_decay(d.get("today_decay")),
+        "pos_limit": clamp_pos_limit(d.get("pos_limit")),
+        "meaning_count": clamp_meaning_count(d.get("meaning_count")),
         "deepseek_ready": bool(key),
         "deepseek_hint": "已配置" if key else "",
         "config_path": str(CONFIG_PATH),

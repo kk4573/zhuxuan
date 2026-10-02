@@ -268,7 +268,40 @@ constitute
     </div>
 
     <div class="setgroup">
-      <h4>释义与发音</h4>
+      <h4>释义</h4>
+
+      <div class="setrow">
+        <div class="sethead">
+          <span class="setname">保留词性</span>
+          <select class="setnum" id="setPosLimit">
+            <option value="0">全部</option>
+            <option value="1">1 个</option>
+            <option value="2">2 个</option>
+            <option value="3">3 个</option>
+          </select>
+        </div>
+        <p class="dim">一个单词常常有好几种词性（n. / v. / adj. …），这里决定答题时显示几种。</p>
+      </div>
+
+      <div class="setrow">
+        <div class="sethead">
+          <span class="setname">每个词性的义项</span>
+          <select class="setnum" id="setMeaningCount">
+            <option value="1">1 个</option>
+            <option value="2">2 个</option>
+            <option value="3">3 个</option>
+          </select>
+        </div>
+        <p class="dim">每种词性下留几条意思。<b>第 3 种词性起会比这里少一条</b>（最少 1 条），免得题干太长。</p>
+      </div>
+
+      <div class="setrow">
+        <div class="sethead">
+          <span class="setname">重新生成释义</span>
+          <button class="mini" id="setRefreshCn">开始</button>
+        </div>
+        <p class="dim">释义是在加词那一刻算好存下来的，所以改了上面两项之后，<b>已有的单词不会自己变</b> —— 点这里按新设置重跑一遍。约 0.15 秒/词，跑的时候可以正常背单词；按钮上会显示进度，中途失败了再点一次会接着跑。</p>
+      </div>
 
       <div class="setrow">
         <div class="sethead">
@@ -278,9 +311,14 @@ constitute
         <p class="dim">词典查不到的词交给它生成释义。填了才启用；密钥只存本机 <span id="cfgPath">config.json</span>，不会外传。</p>
       </div>
 
+    </div>
+
+    <div class="setgroup">
+      <h4>发音</h4>
+
       <div class="setrow">
         <div class="sethead">
-          <span class="setname">发音口音</span>
+          <span class="setname">口音</span>
           <select class="setnum" id="setAccent">
           <option value="us">美音</option>
             <option value="uk">英音</option>

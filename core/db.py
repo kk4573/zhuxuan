@@ -567,6 +567,14 @@ def dict_full_put(word: str, payload: dict) -> None:
         )
 
 
+def dict_clear_all() -> dict:
+    """把两份词典缓存都清掉（改了释义详细程度时用）。不动词库和学习记录。"""
+    with cursor() as conn:
+        a = conn.execute("DELETE FROM dict_cache").rowcount
+        b = conn.execute("DELETE FROM dict_full").rowcount
+    return {"dict_cache": a, "dict_full": b}
+
+
 def sent_get(word: str) -> dict | None:
     """取缓存的例句。有记录就返回（`sent` 为空字符串表示"确认过没有例句"）。"""
     with cursor() as conn:
