@@ -162,6 +162,30 @@ def main() -> int:
         if p.exists():
             p.unlink()
 
+    print("\n— 释义里的 `~`（牛津写法）—")
+    from core.dictionary import tilde
+
+    # 真正要防的是"把不该换的换掉"，所以正反两面都要断言
+    tilde_cases = [
+        # (单词, 原文, 期望)
+        ("abandon", "v. 放弃，抛弃；abandon oneself to 沉溺于", "v. 放弃，抛弃；~ oneself to 沉溺于"),
+        ("crystal", "n. 水晶；cry 哭喊", "n. 水晶；cry 哭喊"),          # 子串不能误伤
+        ("cry", "v. 哭；cried 哭了", "v. 哭；~ 哭了"),                  # y→i 变形
+        ("cry", "v. 哭；cries 哭喊", "v. 哭；~ 哭喊"),
+        ("study", "v. studies 研究；studied 研究过的", "v. ~ 研究；~ 研究过的"),
+        ("day", "n. days 天；daily 每日的", "n. ~ 天；daily 每日的"),   # daily 不是 day 的规则变形
+        ("Abandon", "abandon 放弃", "~ 放弃"),                           # 大小写不敏感
+        ("acid", "n. 酸；酸类物质", "n. 酸；酸类物质"),                  # 没出现就不动
+        ("record", "n. 记录 / v. 录制", "n. 记录 / v. 录制"),
+        ("go", "v. go 去；going 去", "v. ~ 去；~ 去"),
+    ]
+    for en, src, want in tilde_cases:
+        got = tilde(en, src)
+        check(f"tilde({en!r}) → {got[:34]}", got == want, f"期望 {want}")
+
+    # 释义为空时不能炸
+    check("tilde 对空释义安全", tilde("abandon", "") == "" and tilde("", "abc") == "abc")
+
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 

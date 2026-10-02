@@ -75,7 +75,50 @@ def split_meanings(raw: str) -> tuple[str, list[str]]:
     return pos, [x.strip() for x in re.split(r"[；;]", body) if x.strip()]
 
 
-def _extract(data: dict) -> dict | None:
+def _word_of(data: dict, entry: dict) -> str:
+    """从响应里把「这次查的是哪个词」捞出来（有道的字段形态不固定）。"""
+    for cand in (entry.get("return-phrase"), entry.get("word"),
+                 data.get("query") if isinstance(data.get("query"), str) else None):
+        if isinstance(cand, str) and cand.strip():
+            return cand.strip()
+    q = data.get("query")
+    if isinstance(q, dict):
+        for k in ("q", "word", "text"):
+            v = q.get(k)
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+    return ""
+
+
+def tilde(word: str, cn: str) -> str:
+    """释义里出现的**单词本身**用 `~` 代替（牛津词典的写法）。
+
+    例如 abandon 的释义 «放弃，抛弃；abandon oneself to 沉溺于» →
+    «放弃，抛弃；~ oneself to 沉溺于»。
+
+    · 只替换**独立的整词**，所以 crystal 的释义里不会把 cry 换掉
+    · 大小写不敏感（句首的 Abandon 也换）
+    · 短语里的那个词照换（~ oneself to）
+    · 常见的派生形（~s / ~ed / ~ing / ~ly …）也一并换成 `~`，
+      因为释义里写 "abandoned 被遗弃的" 显然指的就是本词
+    """
+    if not cn or not word or not isinstance(word, str):
+        return cn
+    w = word.strip()
+    if not w:
+        return cn
+    # 允许后缀：s / es / ed / d / ing / ly / ment / ness / er / est / ion
+    tails = r"(?:s|es|ed|d|ing|ly|ment|ness|er|est|ion)?"
+    # 「辅音 + y」结尾的词要额外认一遍变体：cry → cried / cries
+    stems = {re.escape(w)}
+    if re.search(r"[^aeiouAEIOU]y$", w):
+        stems.add(re.escape(w[:-1] + "i"))
+    pat = re.compile(r"(?<![A-Za-z])(?:" + "|".join(sorted(stems)) + r")" + tails + r"(?![A-Za-z])",
+                     re.I)
+    return pat.sub("~", cn)
+
+
+def _extract(data: dict, word: str = "") -> dict | None:
     """把有道返回的 JSON 整理成 {cn, pos, ph}。词典没这个词时返回 None。
 
     编排规则（kk 定的）：
@@ -130,6 +173,7 @@ def _extract(data: dict) -> dict | None:
     cn = " / ".join(chunks)
     if len(cn) > MAX_CN_LEN:
         cn = cn[:MAX_CN_LEN].rstrip("，,；;、 /") + "…"
+    cn = tilde(word or _word_of(data, w), cn)
     return {"cn": cn, "pos": " / ".join(pos_list), "ph": ph}
 
 
@@ -138,7 +182,7 @@ def _extract(data: dict) -> dict | None:
 def query_online(word: str) -> dict | None:
     """直接问有道。网络异常会抛出来，交给 lookup 处理。"""
     data = json.loads(_get(JSON_API + urllib.parse.quote(word)).decode("utf-8", "ignore"))
-    return _extract(data)
+    return _extract(data, word)
 
 
 
@@ -403,7 +447,7 @@ def lookup_full(word: str, force: bool = False) -> dict:
     except Exception as exc:
         return {"ok": False, "reason": f"词典连接失败：{exc}"}
 
-    base = _extract(raw)
+    base = _extract(raw, word)
     if not base or not base.get("cn"):
         ai = ai_mod.generate(word)
         if ai and ai.get("cn"):

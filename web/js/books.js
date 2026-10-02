@@ -73,7 +73,9 @@ function fillBooks(sel, opts) {
 async function refreshBookSelects() {
   await loadBooks(true);
   fillBooks($('#studyBook'));
-  fillBooks($('#libBook'), { allOption: '全部单词', value: $('#libBook') ? $('#libBook').value : '' });
+  // 词库页：进来时默认落在**默认词库**上（kk 的要求），"全部单词"仍然可以手动选
+  const libCur = $('#libBook') && $('#libBook').value;
+  fillBooks($('#libBook'), { allOption: '全部单词', value: libCur || defaultBookId() });
   fillBooks($('#importBook'));
   fillBooks($('#addBook'));
   fillBooks($('#lookBook'));
