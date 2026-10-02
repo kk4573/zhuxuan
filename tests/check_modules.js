@@ -171,5 +171,50 @@ try {
   check('词库管理渲染没炸', false, String(e));
 }
 
+
+(async () => {
+// ---------- 真去点一遍按钮：抓「回调里的引用错误」 ----------
+// 这类错误语法检查抓不到（比如 res 声明在 else 块里、块外却用到），
+// 只有在用户真点下去的那一刻才会炸成 "xxx is not defined"。这里替用户点。
+console.log('\n— 点击回调能不能跑通 —');
+const clickable = ['addBtn', 'editOk', 'importOk', 'editCancel', 'importCancel',
+                   'searchClear', 'enrichBtn', 'importBtn'];
+for (const id of clickable) {
+  const el = sandbox.document.querySelector('#' + id);
+  if (!el || typeof el.onclick !== 'function') {
+    check('#' + id + ' 绑了点击回调', false, typeof (el && el.onclick));
+    continue;
+  }
+  // 先把提示框清干净，免得读到上一轮的
+  const boxes = ['#editMsg', '#importMsg', '#bookMsg', '#newBookMsg'];
+  boxes.forEach((b) => { const x = sandbox.document.querySelector(b); if (x) x.textContent = ''; });
+  // 关键：得把表单填上，否则回调在第一行「英文不能为空」就 return 了，
+  // 后面真正的逻辑压根没跑 —— 测试会假绿（曾经就这么漏掉一个 ReferenceError）
+  if (id === 'editOk') {
+    sandbox.document.querySelector('#editEn').value = 'vacuum';
+    sandbox.document.querySelector('#editCn').value = 'n. 真空';
+  }
+  if (id === 'importOk') {
+    sandbox.document.querySelector('#importText').value = 'vacuum';
+  }
+  let threw = null;
+  try {
+    const r = el.onclick({ preventDefault() {}, target: makeEl() });
+    if (r && typeof r.then === 'function') await r;
+  } catch (e) {
+    threw = e;
+  }
+  // 光"没抛异常"不够 —— 很多错误被 try/catch 吞掉，变成给用户看的红字提示。
+  // 所以还要看提示框里有没有冒出来一个「XXX is not defined」之类的。
+  const shown = boxes
+    .map((b) => { const x = sandbox.document.querySelector(b); return x ? (x.textContent || '') : ''; })
+    .join(' ');
+  const looksLikeBug = /is not defined|is not a function|Cannot read|undefined is not/.test(shown);
+  check('#' + id + ' 点下去没出错提示',
+        !threw && !looksLikeBug,
+        threw ? String(threw) : shown);
+}
+
 console.log(`\n结果：${ok} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);
+})();

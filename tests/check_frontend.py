@@ -110,6 +110,30 @@ def main() -> int:
                 "newBookCancel", "bookModal", "bookList", "bookClose", "vocabSel", "vocabImport", "bookManageBtn"):
         check(f"关键元素 #{sel} 存在", sel in html_ids)
 
+
+    # ---- CSS：同一个选择器被定义多次，后一条会悄悄覆盖前一条的冲突属性 ----
+    # （kk 报的「开关盖住文字」就是这么来的：.switch 写了两次，第二条把 display:flex 覆盖了）
+    css = (WEB / "style.css").read_text(encoding="utf-8")
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)          # 去注释，免得注释里的例子被算进去
+    rules: dict[str, list[list[str]]] = {}
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        sel = " ".join(sel.split())
+        for part in sel.split(","):
+            part = part.strip()
+            if not part or part.startswith("@"):          # @media 之类的跳过
+                continue
+            props = [d.split(":")[0].strip().lower() for d in body.split(";") if ":" in d]
+            rules.setdefault(part, []).append(props)
+    dupes = []
+    for sel, groups in rules.items():
+        if len(groups) < 2:
+            continue
+        clash = set(groups[0]) & set(groups[1])
+        # display / position / width 这类关键属性撞车才是真问题
+        if clash & {"display", "position", "width", "height", "flex"}:
+            dupes.append(f"{sel} → 冲突属性 {sorted(clash)}")
+    check("CSS 里没有会互相覆盖的关键选择器", not dupes, dupes[:4])
+
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 

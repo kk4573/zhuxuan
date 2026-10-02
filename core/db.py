@@ -169,7 +169,13 @@ def migrate_books() -> dict:
             )
             attached += 1
 
-    return {"default_book_id": default_id, "created_book": created, "attached_words": attached}
+        # 顺手清掉历史遗留的孤儿归属（单词早删了、归属还挂着）
+        cur = conn.execute(
+            "DELETE FROM book_words WHERE word_id NOT IN (SELECT id FROM words)")
+        cleaned = cur.rowcount
+
+    return {"default_book_id": default_id, "created_book": created,
+            "attached_words": attached, "cleaned_orphans": cleaned}
 
 
 def backup(keep: int = 10) -> str | None:
@@ -436,9 +442,21 @@ def record_answer(wid: int, result: str, mastery: int, streak: int) -> None:
 
 
 def delete_word(wid: int) -> bool:
+    """删单词。**归属关系必须一起删**，否则词库里会留下指向空气的记录，
+    词库显示的条数就会和实际词数对不上（曾经就是这个 bug）。"""
     with cursor() as conn:
+        conn.execute("DELETE FROM book_words WHERE word_id = ?", (wid,))
         cur = conn.execute("DELETE FROM words WHERE id = ?", (wid,))
     return cur.rowcount > 0
+
+
+def cleanup_orphans() -> int:
+    """清掉历史遗留的孤儿归属（单词已经不在、归属还在）。返回清掉的条数。"""
+    with cursor() as conn:
+        cur = conn.execute(
+            """DELETE FROM book_words
+                WHERE word_id NOT IN (SELECT id FROM words)""")
+    return cur.rowcount
 
 
 def pick_pool(book_id: int | None = None) -> list[dict]:

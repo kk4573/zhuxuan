@@ -324,27 +324,32 @@ function bindLib() {
   });
 
   // 添加 / 修改弹层
-  // 添加 / 修改弹层
   $('#editCancel').onclick = () => { $('#editModal').hidden = true; };
   $('#editOk').onclick = async () => {
     const en = $('#editEn').value.trim();
     if (!en) { msg('#editMsg', '英文不能为空', 'bad'); return; }
-    const body = { en: en, cn: $('#editCn').value.trim(), pos: $('#editPos').value.trim(), ph: $('#editPh').value.trim() };
+    const body = {
+      en: en,
+      cn: $('#editCn').value.trim(),
+      pos: $('#editPos').value.trim(),
+      ph: $('#editPh').value.trim(),
+    };
+    // res 要在两个分支外面声明 —— 之前写在 else 块里，后面用到就 ReferenceError 了
+    let res = null;
     try {
       if (editingId) {
         await api('PUT', '/api/words/' + editingId, body);
       } else {
         const bsel = $('#addBook');
         if (bsel && bsel.value) body.book_id = parseInt(bsel.value, 10);
-        const res = await api('POST', '/api/words', body);
-        if (res && res.existing) {
-          msg('#editMsg', '「' + en + '」已在词库，已加进当前词库（释义没动）', 'ok');
-        }
+        res = await api('POST', '/api/words', body);
       }
       if (editingId) {
         $('#editModal').hidden = true;
         toast('已保存', 'ok');
-      } else if (!(res && res.existing)) {
+      } else if (res && res.existing) {
+        msg('#editMsg', '「' + en + '」已在词库，已加进当前词库（释义没动）', 'ok');
+      } else {
         $('#editModal').hidden = true;
         toast('已添加', 'ok');
       }

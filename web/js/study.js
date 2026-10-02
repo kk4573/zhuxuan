@@ -254,11 +254,9 @@ function bindStudy() {
   $('#startBtn').onclick = startSession;
   $('#endBtn').onclick = () => finishSession(true);
 
-  // 自动跳开关
-  // 自动跳开关
-  $('#autoTrack').parentElement.onclick = () => {
-    S.auto = !S.auto;
-    $('#autoTrack').classList.toggle('on', S.auto);
+  // 自动跳开关（checkbox，跟设置页那些开关写法一致）
+  $('#autoTrack').onchange = () => {
+    S.auto = $('#autoTrack').checked;
     if (S.auto && S.submitted) S.autoTimer = setTimeout(nextQuestion, 800);
   };
 

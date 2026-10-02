@@ -111,6 +111,19 @@ def main() -> int:
         check("填 99 被夹到上限 5", cfg2.get("today_decay") == 5.0, cfg2.get("today_decay"))
         call("PUT", "/api/config", {"today_decay": cfg0.get("today_decay", 1.0)})   # 还原
 
+        print("\n— 删单词要连词库归属一起清 —")
+        _, c1 = call("POST", "/api/words", {"en": "zzz-tmp-del", "cn": "临时测试词"})
+        tmp_id = c1.get("id")
+        check("建了一个临时词", bool(tmp_id), c1)
+        if tmp_id:
+            _, b1 = call("GET", "/api/books")
+            before = next((b["count"] for b in b1["items"] if b["id"] == b1["default_id"]), 0)
+            call("DELETE", "/api/words/" + str(tmp_id))
+            _, b2 = call("GET", "/api/books")
+            after = next((b["count"] for b in b2["items"] if b["id"] == b2["default_id"]), 0)
+            # 只该少 1；如果少 0 说明词库数还停着孤儿归属，少 2 说明清过头了
+            check("删词后词库条数 -1（没留孤儿归属）", after == before - 1, f"{before} → {after}")
+
         print("\n— 统计 —")
         _, s = call("GET", "/api/stats")
         check("空词库 total = 0", s.get("total") == 0, s)

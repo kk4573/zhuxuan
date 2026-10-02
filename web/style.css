@@ -87,13 +87,6 @@ main{padding:26px 22px 48px}
 .quizbar{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--dim)}
 .quizbar b{color:var(--fg);font-weight:600}
 .switch{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
-.track{
-  width:34px;height:18px;border-radius:10px;background:#2b3140;position:relative;
-  transition:.15s;display:inline-block;flex:none;
-}
-.track.on{background:var(--accent)}
-.knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:.15s}
-.track.on .knob{left:18px}
 .bar{height:3px;background:#232836;border-radius:2px;margin:12px 0 20px;overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
 
@@ -324,11 +317,16 @@ td.ops .link{margin-left:10px}
 .setnum:focus{border-color:var(--accent)}
 select.setnum{width:110px;text-align:left;font-family:inherit;cursor:pointer;padding:0 9px}
 
-/* 开关 */
-.switch{position:relative;flex:none;width:42px;height:23px;cursor:pointer}
+/* 开关：<label class="switch"><input type=checkbox><i></i><span>文字</span></label>
+   ⚠️ 这里原来又写了一条 .switch{position:relative;width:42px…}，把上面那条的
+   display:flex 覆盖掉了。结果答题页那个 label 不再是弹性布局，<i> 又绝对定位
+   撑满整个 label，直接把「答对后自动跳过」这几个字盖住了（kk 报的开关问题）。 */
+.switch > i{
+  position:relative;flex:none;width:42px;height:23px;border-radius:12px;
+  background:#39414f;transition:background .16s ease;
+}
 .switch input{position:absolute;opacity:0;width:0;height:0}
-.switch i{position:absolute;inset:0;border-radius:12px;background:#39414f;transition:background .16s ease}
-.switch i::after{
+.switch > i::after{
   content:'';position:absolute;left:3px;top:3px;width:17px;height:17px;border-radius:50%;
   background:#c9d1dd;transition:transform .16s ease;
 }
@@ -580,19 +578,6 @@ button.mini:disabled{opacity:.55;cursor:default}
 }
 .vocabpick select:focus{outline:none;border-color:var(--accent)}
 
-/* 「选择 Excel 文件」做成文字按钮的样子（真正的 input 藏起来） */
-.filebtn{
-  display:inline-block;cursor:pointer;font-size:13px;
-  color:var(--fg);background:#28303f;border:1px solid #3a4459;border-radius:8px;
-  padding:7px 15px;transition:border-color .14s,color .14s;
-}
-.filebtn:hover{border-color:var(--accent);color:var(--accent)}
-
-/* 词库管理弹层里的一行 */
-.bookrow{
-  display:flex;align-items:center;gap:10px;
-  padding:11px 2px;border-bottom:1px solid var(--line);
-}
 .bookrow:last-child{border-bottom:none}
 .bookrow .bname{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bookrow .bmeta{font-size:12.5px;color:var(--muted);flex:none}
