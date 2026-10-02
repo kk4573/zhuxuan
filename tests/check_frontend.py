@@ -134,6 +134,23 @@ def main() -> int:
             dupes.append(f"{sel} → 冲突属性 {sorted(clash)}")
     check("CSS 里没有会互相覆盖的关键选择器", not dupes, dupes[:4])
 
+
+    # ---- 弹层必须限高且能滚 ----
+    # 内容一多就顶出屏幕、上下两头都看不见（kk 报过），所以这里盯着两条：
+    # ① .modalbox 有 max-height ② 有 overflow-y:auto
+    css_all = (WEB / "style.css").read_text(encoding="utf-8")
+    css_all = re.sub(r"/\*.*?\*/", "", css_all, flags=re.S)
+    box_rules = re.findall(r"\.modalbox[^{,]*\{([^}]*)\}", css_all)
+    box_css = " ".join(box_rules).replace(" ", "")
+    check("弹层限高：.modalbox 有 max-height", "max-height:" in box_css)
+    check("弹层可滚：.modalbox 有 overflow-y", "overflow-y:auto" in box_css)
+    check("底部按钮吸底：.modalact 有 sticky", re.search(
+        r"\.modalbox\s+\.modalact[^{]*\{[^}]*position:sticky", css_all) is not None)
+    check("滚动条看得见：定义了 ::-webkit-scrollbar", "::-webkit-scrollbar" in css_all)
+
+    # ---- 窗口尺寸不能再写死 ----
+    app_src = (ROOT / "app.py").read_text(encoding="utf-8")
+    check("窗口尺寸按屏幕算，没写死", "--window-size=%d,%d" in app_src and "_window_size" in app_src)
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 

@@ -603,3 +603,58 @@ button.mini:disabled{opacity:.55;cursor:default}
 
 /* 设置项下面的说明：限制行宽，一行别太长 */
 .setrow p.dim{max-width:620px}
+
+/* ==================================================================
+   弹层尺寸与滚动
+   ------------------------------------------------------------------
+   原来 .modalbox 既不限高也不给滚动条，设置项一多就直接顶出屏幕，
+   上下两头都看不见（kk 报的）。这里统一处理：
+     · 最高不超过窗口高度，撑满了就在**盒子内部**滚
+     · 底部的按钮/提示吸底，滚到哪儿都能够到「保存 / 取消」
+   ================================================================== */
+.modalbox{
+  max-height:calc(100vh - 44px);
+  overflow-y:auto;
+  overscroll-behavior:contain;      /* 滚到头别把后面的页面带着一起滚 */
+  display:flex;
+  flex-direction:column;
+}
+.modalbox > h3{flex:none}
+
+/* 说明性的小字、分组之间留点呼吸，滚起来才分得清段落 */
+.modalbox .setgroup{flex:none}
+
+/* 按钮那一行（含 #xxxMsg）固定在底部 */
+.modalbox .modalact,
+.modalbox .modalmsg{
+  flex:none;
+  position:sticky;
+  bottom:0;
+  background:var(--card2);
+}
+.modalbox .modalact{
+  margin-top:auto;
+  padding-top:14px;
+  z-index:2;
+}
+.modalbox .modalmsg{
+  z-index:2;
+  padding-bottom:2px;
+}
+/* 吸底的按钮条上面加一道细细的分隔，滚动时看得出内容是从下面钻过去的 */
+.modalbox .modalact::before{
+  content:'';
+  position:absolute;left:-26px;right:-26px;top:0;height:1px;
+  background:var(--line);
+}
+
+/* 滚动条本身别太抢眼，但得看得见 */
+.modalbox::-webkit-scrollbar{width:10px}
+.modalbox::-webkit-scrollbar-track{background:transparent}
+.modalbox::-webkit-scrollbar-thumb{
+  background:#39414f;border-radius:6px;border:3px solid var(--card2);
+}
+.modalbox::-webkit-scrollbar-thumb:hover{background:#4a5468}
+
+/* 高度受限时，设置弹层可以用满宽度（窄窗口下说明文字不至于挤成一条） */
+.modalbox.setbox{max-width:min(600px, calc(100vw - 40px))}

@@ -767,6 +767,27 @@ def _wait_ready(url: str, timeout: float = 20.0) -> bool:
     return False
 
 
+def _window_size() -> tuple[int, int]:
+    """按屏幕大小挑一个合适的窗口尺寸。
+
+    原来写死 1040×780 —— 小屏上可能比屏幕还大（最大化按钮都被顶出屏幕），
+    大屏上又显得局促。这里取屏幕的七八成，再夹到合理区间。
+    """
+    try:
+        import ctypes
+        u = ctypes.windll.user32
+        sw = u.GetSystemMetrics(0)          # 屏幕宽（逻辑像素）
+        sh = u.GetSystemMetrics(1)          # 屏幕高
+        if sw < 400 or sh < 400:            # 取不到就退回默认
+            raise ValueError
+    except Exception:
+        return 1040, 780
+    # 宽取 78%、高取 84%，并夹住上下限；再留点边，别贴着屏幕边缘
+    w = max(900, min(1420, int(sw * 0.78)))
+    h = max(620, min(980, int(sh * 0.84)))
+    return w, h
+
+
 def _open_window(url: str) -> None:
     edge = _find_edge()
     if edge:
@@ -784,7 +805,7 @@ def _open_window(url: str) -> None:
         ])
         subprocess.Popen([
             edge, f"--app={url}",
-            "--window-size=1040,780",
+            "--window-size=%d,%d" % _window_size(),
             "--no-first-run",
             "--no-default-browser-check",
             f"--disable-features={no_autofill}",
