@@ -157,10 +157,12 @@ def main() -> int:
     check(f"拿到 apple 音频 {len(audio) if audio else 0} 字节", bool(audio) and len(audio) > 512)
     check("取不到的音频返回 None", dictionary.fetch_audio("zzzznotarealword") is None)
 
+    # 清掉缓存库，让下面的 `~` 和例句测试从干净状态开始（**删完必须重建表**）
     for suffix in ("", "-wal", "-shm"):
         p = Path(str(db.DB_PATH) + suffix)
         if p.exists():
             p.unlink()
+    db.init()
 
     print("\n— 释义里的 `~`（牛津写法）—")
     from core.dictionary import tilde
@@ -185,6 +187,28 @@ def main() -> int:
 
     # 释义为空时不能炸
     check("tilde 对空释义安全", tilde("abandon", "") == "" and tilde("", "abc") == "abc")
+
+    print("\n— 背单词时那句例句 —")
+    from core.dictionary import first_sentence
+
+    r1 = first_sentence("abandon")
+    check("能取到 abandon 的例句", r1.get("ok") and bool(r1.get("sent")), r1)
+    if r1.get("ok"):
+        check("例句是英文", any(c.isalpha() for c in r1["sent"]) and not r1["sent"].startswith("n."))
+        check("例句带中文翻译", bool(r1.get("cn")), r1.get("cn"))
+
+    r2 = first_sentence("abandon")
+    check("第二次走本机缓存", r2.get("cached") is True, r2)
+
+    check("同一个词两次结果一致", r1.get("sent") == r2.get("sent"))
+
+    # 空输入不能炸
+    r3 = first_sentence("")
+    check("空单词安全", r3.get("ok") is False)
+
+    # 乱码词：应该返回 ok=False，而不是抛异常
+    r4 = first_sentence("zzzqqq-not-a-word")
+    check("查不到的词不抛异常", r4.get("ok") is False, r4)
 
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0

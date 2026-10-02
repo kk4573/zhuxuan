@@ -462,6 +462,42 @@ def lookup_full(word: str, force: bool = False) -> dict:
     db.dict_put(word, out["cn"], out["pos"], out["ph"], "youdao")   # 顺带喂给词库那份
     return out
 
+def first_sentence(word: str) -> dict:
+    """取这个单词的一句例句（背单词提交后显示用）。
+
+    · 先查 `sent_cache`，命中就秒回、断网也能看
+    · 没缓存才联网，拿到第一条就存起来
+    · **没有例句也记一笔**（存空串），否则每提交一次都要去问一遍词典
+
+    返回 {ok, sent, cn, src}；ok 为 False 表示这个词确实没有例句。
+    """
+    word = (word or "").strip()
+    if not word:
+        return {"ok": False}
+
+    hit = db.sent_get(word)
+    if hit:
+        return {"ok": bool(hit["sent"]), "sent": hit["sent"],
+                "cn": hit["cn"], "src": hit["src"], "cached": True}
+
+    try:
+        data = json.loads(_get(JSON_API + urllib.parse.quote(word)).decode("utf-8", "ignore"))
+    except Exception:
+        return {"ok": False, "reason": "取例句失败"}
+
+    for pair in _as_list(_dig(data, "blng_sents_part", "sentence-pair")):
+        sent = _text(pair.get("sentence"))
+        if not sent:
+            continue
+        cn = _text(pair.get("sentence-translation"))
+        src = _text(pair.get("source"))
+        db.sent_put(word, sent, cn, src)
+        return {"ok": True, "sent": sent, "cn": cn, "src": src}
+
+    db.sent_put(word, "", "", "")          # 记下「确认没有例句」
+    return {"ok": False}
+
+
 def lookup(word: str, use_cache: bool = True, force: bool = False) -> dict:
     """查词：先本地缓存，再在线词典。
 

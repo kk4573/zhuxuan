@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 
 # JS 运行时才生成的元素（弹层里点出来的按钮），HTML 里本来就没有
-DYNAMIC_IDS = {"againBtn", "toLibBtn", "otherAddBtn", "lookSpk", "lookAddBtn", "lookRefresh"}
+DYNAMIC_IDS = {"againBtn", "toLibBtn", "otherAddBtn", "lookSpk", "lookAddBtn", "lookRefresh", "qSent"}
 # 通过字符串参数引用、不走 $('#x') 的 id
 STRING_REF_IDS = {"editMsg", "importMsg", "settingsMsg", "bookMsg", "newBookMsg"}
 

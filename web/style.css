@@ -586,3 +586,12 @@ button.mini:disabled{opacity:.55;cursor:default}
   border-radius:6px;padding:1px 6px;flex:none;
 }
 .bookrow button.link{flex:none;font-size:13px}
+
+/* 答题后贴出来的那一句例句 */
+.qsent{margin-top:14px}
+.qsent:empty{margin-top:0}
+.qsenten{
+  font-size:14.5px;line-height:1.55;color:var(--fg);
+  padding-left:11px;border-left:2px solid #33507f;
+}
+.qsentcn{font-size:13px;color:var(--muted);margin-top:4px;padding-left:11px}

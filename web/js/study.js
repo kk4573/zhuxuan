@@ -101,6 +101,7 @@ function onRight(q, r, inp) {
   S.done.add(q.id);
   inp.className = 'ok';
   $('#qFb').innerHTML = rightHtml(r);
+  loadSentence(r.answer);              // 不管答对答错，都贴一句例句
   speak(r.answer);
   updateProgress();
   if (S.auto) S.autoTimer = setTimeout(nextQuestion, 800);   // 开了自动跳才跳
@@ -112,6 +113,7 @@ function onWrong(q, r, typed, inp) {
   if (S.wrongWords.indexOf(q.en) < 0) S.wrongWords.push(q.en);
   inp.className = 'bad';
   $('#qFb').innerHTML = wrongHtml(r, typed);
+  loadSentence(r.answer);
   checkOtherWord(typed, r.answer);      // 打错了？看看你打的是不是另一个真词
   speak(r.answer);
   showRetype();                         // 当场给一块地方，跟着打一遍加深印象
@@ -126,7 +128,8 @@ function rightHtml(r) {
     (r.ph ? '<span class="ph">' + esc(r.ph) + '</span>' : '') + '</div>' +
     '<div class="row"><span class="lab">掌握度</span><span class="fbhint">' +
     r.from + ' → ' + r.mastery +
-    (r.retried ? '（重考答对，不计分）' : '（+' + r.delta + '）') + '</span></div>';
+    (r.retried ? '（重考答对，不计分）' : '（+' + r.delta + '）') + '</span></div>' +
+    '<div class="qsent" id="qSent"></div>';
 }
 
 function wrongHtml(r, typed) {
@@ -142,7 +145,8 @@ function wrongHtml(r, typed) {
     (mineHtml ? '<div class="row"><span class="lab">你写的</span><span class="mine">' + mineHtml + '</span></div>' : '') +
     '<div class="row"><span class="lab">正确答案</span><span class="ans">' + ansHtml + '</span>' +
     (r.ph ? '<span class="ph">' + esc(r.ph) + '</span>' : '') + '</div>' +
-    '<div class="fbhint">掌握度 ' + r.from + ' → ' + r.mastery + '</div>';
+    '<div class="fbhint">掌握度 ' + r.from + ' → ' + r.mastery + '</div>' +
+    '<div class="qsent" id="qSent"></div>';
 }
 
 /**
@@ -150,6 +154,30 @@ function wrongHtml(r, typed) {
  * 是的话把它连同释义显示出来，并给一个「＋ 加入词库」。
  * 判定与查询都在后端做，这里只负责显示；查不到就什么都不出现。
  */
+let sentSeq = 0;      // 每出一题 +1，慢回来的旧例句直接丢掉
+
+/**
+ * 取这一题答案的例句，贴在反馈下面。
+ *
+ * 例句是**异步**取的（第一次要联网，约 150ms；之后走本机缓存，几乎瞬间），
+ * 所以判定结果先出来，例句晚一点点补上 —— 不会让提交变卡。
+ * 取不到就什么都不显示，不打扰答题。
+ */
+async function loadSentence(word) {
+  const box = $('#qSent');
+  if (!box) return;
+  const my = ++sentSeq;
+  box.innerHTML = '';
+  try {
+    const r = await api('GET', '/api/sentence?en=' + encodeURIComponent(word));
+    if (my !== sentSeq) return;                    // 已经翻到下一题了
+    if (!r || !r.ok || !r.sent) return;
+    box.innerHTML =
+      '<div class="qsenten">' + esc(r.sent) + '</div>' +
+      (r.cn ? '<div class="qsentcn">' + esc(r.cn) + '</div>' : '');
+  } catch (e) { /* 取不到就算了 */ }
+}
+
 async function checkOtherWord(typed, answer) {
   const box = $('#otherWord');
   if (!box) return;
@@ -165,7 +193,7 @@ async function checkOtherWord(typed, answer) {
   if (S.idx !== myIdx || !r || !r.found) return;
 
   box.innerHTML =
-    '<span>你写的 <b>' + esc(r.en) + '</b> 是另一个词：' +
+    '<span><b>' + esc(r.en) + '</b>：' +
     (r.pos ? '<span class="otherpos">' + esc(r.pos) + '</span> ' : '') + esc(r.cn) + '</span>' +
     (r.in_library
       ? '<span class="dim">已在词库中</span>'

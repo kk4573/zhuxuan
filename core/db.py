@@ -87,6 +87,16 @@ CREATE TABLE IF NOT EXISTS dict_cache (
     source     TEXT NOT NULL DEFAULT 'youdao',   -- youdao / ai / manual
     fetched_at TEXT NOT NULL
 );
+
+-- 背单词时那句例句。单独存一张表：查询频繁、内容小，
+-- 而且 miss 也要记（``sent = ''`` 表示"这个词典里没有例句"），免得每次提交都去问一遍。
+CREATE TABLE IF NOT EXISTS sent_cache (
+    word       TEXT PRIMARY KEY COLLATE NOCASE,
+    sent       TEXT NOT NULL DEFAULT '',         -- 英文例句
+    cn         TEXT NOT NULL DEFAULT '',         -- 中文翻译
+    src        TEXT NOT NULL DEFAULT '',         -- 出处（如 «柯林斯»）
+    fetched_at TEXT NOT NULL
+);
 """
 
 
@@ -555,6 +565,27 @@ def dict_full_put(word: str, payload: dict) -> None:
             "INSERT OR REPLACE INTO dict_full (word, payload, fetched_at) VALUES (?, ?, ?)",
             ((word or "").strip(), json.dumps(payload, ensure_ascii=False), now()),
         )
+
+
+def sent_get(word: str) -> dict | None:
+    """取缓存的例句。有记录就返回（`sent` 为空字符串表示"确认过没有例句"）。"""
+    with cursor() as conn:
+        row = conn.execute(
+            "SELECT * FROM sent_cache WHERE word = ? COLLATE NOCASE", (word,)).fetchone()
+    if not row:
+        return None
+    return {"sent": row["sent"], "cn": row["cn"], "src": row["src"], "cached": True}
+
+
+def sent_put(word: str, sent: str, cn: str = "", src: str = "") -> None:
+    with cursor() as conn:
+        conn.execute(
+            """INSERT INTO sent_cache (word, sent, cn, src, fetched_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(word) DO UPDATE SET
+                 sent = excluded.sent, cn = excluded.cn,
+                 src = excluded.src, fetched_at = excluded.fetched_at""",
+            (word, sent, cn, src, now()))
 
 
 def dict_full_count() -> int:

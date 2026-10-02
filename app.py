@@ -477,6 +477,12 @@ class CheckWordIn(BaseModel):
     en: str = ""
 
 
+@app.get("/api/sentence")
+def api_sentence(en: str = ""):
+    """背单词提交后那张例句。先查本机缓存，没有再联网取一条。"""
+    return dictionary.first_sentence(en)
+
+
 @app.post("/api/check-word")
 def api_check_word(p: CheckWordIn):
     """答题打错时，看看他打进去的那个是不是**一个真实存在的单词**。
