@@ -151,6 +151,23 @@ def main() -> int:
     # ---- 窗口尺寸不能再写死 ----
     app_src = (ROOT / "app.py").read_text(encoding="utf-8")
     check("窗口尺寸按屏幕算，没写死", "--window-size=%d,%d" in app_src and "_window_size" in app_src)
+
+    # ---- 绝对定位的元素，父容器必须有定位 ----
+    # 查词卡片的喇叭按钮用的是 position:absolute，挂在 <h2> 里；
+    # 而 h2 没写 position:relative 时，它会跳过 h2 去找视口，直接飞出卡片（kk 报过）。
+    css3 = re.sub(r"/\*.*?\*/", "", (WEB / "style.css").read_text(encoding="utf-8"), flags=re.S)
+    h2_rule = re.search(r"\.looktitle\s+h2\s*\{([^}]*)\}", css3)
+    check(".looktitle h2 有定位（里面的喇叭才不会飞出去）",
+          h2_rule is not None and "position:relative" in h2_rule.group(1).replace(" ", ""))
+
+    spk_in_h2 = re.search(r"\.looktitle\s+h2\s+\.spk\s*\{([^}]*)\}", css3)
+    check("查词卡片的喇叭用的是常规布局（不是 absolute）",
+          spk_in_h2 is not None and "position:static" in spk_in_h2.group(1).replace(" ", ""))
+
+    # 答题页那个喇叭仍然是绝对定位，但它的容器 .field 有定位 —— 两边都别改坏
+    field_rule = re.search(r"\.field\{([^}]*)\}", css3)
+    check("答题页 .field 仍然有定位（那边的喇叭也靠它）",
+          field_rule is not None and "position:relative" in field_rule.group(1).replace(" ", ""))
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 

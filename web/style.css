@@ -411,6 +411,8 @@ select.setnum{width:110px;text-align:left;font-family:inherit;cursor:pointer;pad
 .looktitle h2{
   margin:0;font-size:25px;font-weight:650;letter-spacing:.3px;
   display:flex;align-items:center;gap:10px;
+  position:relative;         /* ← 关键：不写这行，里面 position:absolute 的喇叭
+                                会跳过它去找视口，直接飞出卡片（kk 报的那个） */
 }
 .lookph{margin-top:7px;display:flex;align-items:baseline;gap:14px;font-family:Consolas,monospace}
 .lookph span{color:var(--fg);font-size:13.5px}
@@ -658,3 +660,15 @@ button.mini:disabled{opacity:.55;cursor:default}
 
 /* 高度受限时，设置弹层可以用满宽度（窄窗口下说明文字不至于挤成一条） */
 .modalbox.setbox{max-width:min(600px, calc(100vw - 40px))}
+
+/* ==================================================================
+   查词卡片里那个喇叭按钮跑出卡片了
+   ------------------------------------------------------------------
+   .spk 是 position:absolute（right:11px;top:50%），本来该贴着所在容器定位。
+   答题页的容器 .field 有定位所以正常；查词页它挂在 <h2> 里面，而 h2 没有定位，
+   于是它一路找最近的定位祖先，直接飞到了卡片外面。
+   给 h2 补上定位，并留出右侧空间，别再压到单词上。
+   ================================================================== */
+/* 喇叭改用常规布局跟着单词走，不再脱离文档流 */
+.looktitle h2 .spk{position:static;transform:none;font-size:19px;opacity:.6;flex:none}
+.looktitle h2 .spk:hover{opacity:1}
