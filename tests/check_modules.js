@@ -285,6 +285,47 @@ try {
   check('点词不会抛异常', false, String(e));
 }
 
+
+// ---------- 查词页的返回键（场景） ----------
+console.log('\n— 返回键的返回目标 —');
+try {
+  const back = sandbox.document.querySelector('#lookBack');
+  const oldFetch2 = sandbox.fetch;
+  sandbox.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: true }) });
+
+  // ① 自己在查词页查词 → 没有返回目标 → 不该显示返回键
+  vm.runInContext("S.lookBack = null; renderLookBack();", ctx);
+  check('自己查的词：不显示返回键', back.hidden === true, back.hidden);
+
+  // ② 从词库页点过来的 → 显示返回键
+  vm.runInContext("S.lookBack = { type: 'view', view: 'lib' }; renderLookBack();", ctx);
+  check('从词库跳过来：显示返回键', back.hidden === false);
+  check('按钮文案是「← 返回」', back.textContent === '← 返回', back.textContent);
+
+  // ③ 在查词页里又点了一个词 → 返回目标是**上一个词**
+  vm.runInContext("S.view = 'look'; lookWord = 'abandon';", ctx);
+  vm.runInContext("S.lookBack = { type: 'word', word: 'abandon' }; renderLookBack();", ctx);
+  check('上一个词也在返回目标里', back.hidden === false);
+
+  // 点返回：应该回到 abandon，而且这次不再有返回键（只保留一层）
+  if (typeof back.onclick === 'function') {
+    const p = back.onclick();
+    if (p && typeof p.then === 'function') {
+      // 异步的，等一拍再看
+      vm.runInContext("setTimeout(() => {}, 0)", ctx);
+    }
+    check('点了返回之后，返回目标被清掉（回到上一个词，不再有返回键）',
+          vm.runInContext('S.lookBack', ctx) === null,
+          vm.runInContext('S.lookBack', ctx));
+  } else {
+    check('返回键绑了点击处理', false, typeof back.onclick);
+  }
+
+  sandbox.fetch = oldFetch2;
+} catch (e) {
+  check('返回键场景能跑', false, String(e));
+}
+
 (async () => {
 // ---------- 真去点一遍按钮：抓「回调里的引用错误」 ----------
 // 这类错误语法检查抓不到（比如 res 声明在 else 块里、块外却用到），

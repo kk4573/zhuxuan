@@ -316,9 +316,8 @@ function bindLib() {
     if (!btn) {
       const w = wordCache[id];
       if (!w) return;
-      showView('look');                        // 去查词页看完整资料
-      $('#lookInput').value = w.en;
-      doLookup(w.en);
+      // 去查词页看完整资料，返回键回到词库页
+      openLook(w.en, { type: 'view', view: 'lib' });
       return;
     }
 

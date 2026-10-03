@@ -142,12 +142,9 @@ $('#goTop').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 /* ==================== 视图 / 阶段 ==================== */
 
 function showView(v) {
-  // 从别的页面切到「查词」时，记住是从哪来的 —— 那个页面要显示一个「← 返回」。
-  // 直接点顶栏「查词」标签进来的（原来就在查词页）不显示，免得莫名其妙多个按钮。
-  if (v === 'look') {
-    S.lookFrom = (S.view && S.view !== 'look') ? S.view : null;
-    renderLookBack();
-  }
+  // 注意：切到查词页时**不清空**返回目标 —— 用顶栏标签切过去，返回键该消失；
+  // 但由 openLook() 带过来的返回目标是它自己设的，这里别抢。
+  if (v !== 'look') S.lookBack = null;
   S.view = v;
   try { if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v); } catch (e) { /* 无所谓 */ }
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === v));
@@ -172,16 +169,6 @@ function showPhase(p) {
 
 /* ==================== 统计 ==================== */
 
-/** 查词页左上角那个「← 返回」：从词库 / 背单词跳过来的才显示。 */
-function renderLookBack() {
-  const btn = $('#lookBack');
-  if (!btn) return;
-  const from = S.lookFrom;
-  if (!from) { btn.hidden = true; return; }
-  btn.hidden = false;
-  btn.textContent = from === 'lib' ? '← 返回词库' : '← 返回答题';
-  btn.onclick = () => showView(from);
-}
 
 
 async function loadStats() {

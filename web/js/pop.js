@@ -137,9 +137,13 @@ async function openWordPop(span) {
   const more = el.querySelector('.wp-more');
   if (more) more.onclick = () => {
     closeWordPop();
-    showView('look');
-    if (typeof setLookInput === 'function') setLookInput(r.en || raw);
-    doLookup(r.en || raw);
+    const target = r.en || raw;
+    // 已经在查词页里 → 返回目标记成"当前这个词"，这样返回键是回到上一个看过的词；
+    // 从别的页面点过来的 → 返回那个页面。
+    const from = (S.view === 'look' && lookWord)
+      ? { type: 'word', word: lookWord }
+      : { type: 'view', view: S.view };
+    openLook(target, from);
   };
 
   const add = el.querySelector('.wp-add');

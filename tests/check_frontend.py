@@ -180,10 +180,19 @@ def main() -> int:
                   "refreshBookSelects" in src, "它里面有加词的调用，却没有刷下拉")
 
     # ---- 查词页的返回按钮 ----
-    base = (WEB / "js" / "base.js").read_text(encoding="utf-8")
-    check("showView 会记住查词页的来源", "S.lookFrom" in base)
-    check("有 renderLookBack 并且会切换显隐",
-          "function renderLookBack" in base and "btn.hidden" in base)
+    # 返回目标是"上一个看过的东西"，不一定是个页面：
+    # 在查词页里又点了一个词，返回该回到**上一个词**，而不是词库页。
+    look = (WEB / "js" / "look.js").read_text(encoding="utf-8")
+    check("有统一的跳转入口 openLook", "async function openLook(" in look)
+    check("返回键逻辑在 look.js 里", "function renderLookBack(" in look)
+    check("按钮文案就是「← 返回」（不写死「返回词库」）",
+          "textContent = '← 返回'" in look and "返回词库" not in look)
+    check("返回目标支持「上一个词」", "type: 'word'" in look)
+    check("返回目标支持「上一个页面」", "type: 'view'" in look)
+
+    # 自己在查词页查的词不该冒出返回键
+    b2 = (WEB / "js" / "base.js").read_text(encoding="utf-8")
+    check("顶栏切到查词页时会清掉返回目标", "S.lookBack = null" in b2)
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 
