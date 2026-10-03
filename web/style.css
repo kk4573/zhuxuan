@@ -589,14 +589,27 @@ button.mini:disabled{opacity:.55;cursor:default}
 }
 .bookrow button.link{flex:none;font-size:13px}
 
-/* 答题后贴出来的那一句例句 */
-.qsent{margin-top:14px}
-.qsent:empty{margin-top:0}
-.qsenten{
-  font-size:14.5px;line-height:1.55;color:var(--fg);
-  padding-left:11px;border-left:2px solid #33507f;
+/* 答题后贴出来的那一句例句。
+   放进一个小框里，字号也放大一档 —— 例句是拿来读的，
+   挤在反馈区那堆 13.5px 的小字里容易被忽略。 */
+.qsent{
+  margin-top:17px;
+  background:#1b2130;                 /* 比卡片亮一档，框感明确 */
+  border:1px solid #343d4f;
+  border-left:3px solid var(--line2);   /* 左侧强调线，颜色跟答题结果联动 */
+  border-radius:12px;
+  padding:14px 17px 15px;
 }
-.qsentcn{font-size:13px;color:var(--muted);margin-top:4px;padding-left:11px}
+.qsent:empty{display:none}            /* 没有例句时整块不占位 */
+.qsenten{
+  font-size:16.5px;line-height:1.65;color:#f2f5fa;
+  letter-spacing:.2px;
+}
+.qsentcn{
+  font-size:14px;line-height:1.62;color:#a8b1c4;
+  margin-top:9px;padding-top:9px;
+  border-top:1px dashed #3b4459;
+}
 
 /* 词库表格：点一行能看这个单词的详情，给个手型提示 */
 .wordtable tbody tr{cursor:pointer}
@@ -672,3 +685,13 @@ button.mini:disabled{opacity:.55;cursor:default}
 /* 喇叭改用常规布局跟着单词走，不再脱离文档流 */
 .looktitle h2 .spk{position:static;transform:none;font-size:19px;opacity:.6;flex:none}
 .looktitle h2 .spk:hover{opacity:1}
+
+/* 例句框左侧那条线跟答题结果联动：答对绿、答错红，一眼能看出这一题的结果 */
+.qsent.ok{border-left-color:var(--ok)}
+.qsent.bad{border-left-color:var(--bad)}
+
+/* 例句里被考的那个词 */
+.qsenten .qhit{
+  font-style:normal;font-weight:650;color:var(--accent);
+  background:#20304d;border-radius:4px;padding:0 3px;
+}

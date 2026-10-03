@@ -172,6 +172,40 @@ try {
 }
 
 
+
+// ---------- 例句里的词高亮 ----------
+console.log('\n— 例句高亮目标词 —');
+try {
+  const cases = [
+    ['The captain gave the order to abandon ship.', 'abandon', 1],
+    ['The odours filled the room.', 'odour', 1],              // 复数也要标
+    ['He abandoned his car.', 'abandon', 1],                  // 过去式也要标
+    ['A crystal clear lake.', 'cry', 0],                      // 不能误伤 crystal
+    ['The desert was vast.', 'desert', 1],
+    ['Nothing here at all.', 'abandon', 0],
+  ];
+  let allOk = true;
+  for (const [sent, word, want] of cases) {
+    const got = vm.runInContext('markWord(' + JSON.stringify(sent) + ',' + JSON.stringify(word) + ')', ctx);
+    const n = (got.match(/class="qhit"/g) || []).length;
+    if (n !== want) {
+      allOk = false;
+      check('高亮 ' + word + ' @ ' + sent.slice(0, 24) + ' (期望 ' + want + '，实得 ' + n + ')', false, got);
+    }
+  }
+  check('例句高亮：6 个用例全对', allOk);
+
+  // 转义顺序：先 esc 再替换，正文里的尖括号不能被当标签
+  const esc1 = vm.runInContext('markWord("<b>abandon</b> & co", "abandon")', ctx);
+  check('例句高亮：尖括号被正确转义', esc1.includes('&lt;b&gt;') && !esc1.includes('<b>abandon'), esc1);
+
+  // 空词不能炸
+  const esc2 = vm.runInContext('markWord("hello world", "")', ctx);
+  check('例句高亮：空单词安全', esc2 === 'hello world');
+} catch (e) {
+  check('例句高亮能跑', false, String(e));
+}
+
 (async () => {
 // ---------- 真去点一遍按钮：抓「回调里的引用错误」 ----------
 // 这类错误语法检查抓不到（比如 res 声明在 else 块里、块外却用到），

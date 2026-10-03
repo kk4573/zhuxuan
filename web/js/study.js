@@ -101,7 +101,7 @@ function onRight(q, r, inp) {
   S.done.add(q.id);
   inp.className = 'ok';
   $('#qFb').innerHTML = rightHtml(r);
-  loadSentence(r.answer);              // 不管答对答错，都贴一句例句
+  loadSentence(r.answer, 'ok');         // 不管答对答错，都贴一句例句
   speak(r.answer);
   updateProgress();
   if (S.auto) S.autoTimer = setTimeout(nextQuestion, 800);   // 开了自动跳才跳
@@ -113,7 +113,7 @@ function onWrong(q, r, typed, inp) {
   if (S.wrongWords.indexOf(q.en) < 0) S.wrongWords.push(q.en);
   inp.className = 'bad';
   $('#qFb').innerHTML = wrongHtml(r, typed);
-  loadSentence(r.answer);
+  loadSentence(r.answer, 'bad');
   checkOtherWord(typed, r.answer);      // 打错了？看看你打的是不是另一个真词
   speak(r.answer);
   showRetype();                         // 当场给一块地方，跟着打一遍加深印象
@@ -163,19 +163,41 @@ let sentSeq = 0;      // 每出一题 +1，慢回来的旧例句直接丢掉
  * 所以判定结果先出来，例句晚一点点补上 —— 不会让提交变卡。
  * 取不到就什么都不显示，不打扰答题。
  */
-async function loadSentence(word) {
+async function loadSentence(word, kind) {
   const box = $('#qSent');
   if (!box) return;
   const my = ++sentSeq;
+  box.className = 'qsent' + (kind === 'bad' ? ' bad' : kind === 'ok' ? ' ok' : '');
   box.innerHTML = '';
   try {
     const r = await api('GET', '/api/sentence?en=' + encodeURIComponent(word));
     if (my !== sentSeq) return;                    // 已经翻到下一题了
     if (!r || !r.ok || !r.sent) return;
     box.innerHTML =
-      '<div class="qsenten">' + esc(r.sent) + '</div>' +
+      '<div class="qsenten">' + markWord(r.sent, word) + '</div>' +
       (r.cn ? '<div class="qsentcn">' + esc(r.cn) + '</div>' : '');
   } catch (e) { /* 取不到就算了 */ }
+}
+
+
+/**
+ * 在例句里把这次考的单词标出来（允许常见的词尾变化）。
+ *
+ * 例句里出现十几次别的词，唯独本词才是要记的那个；标出来读的时候视线有个落点。
+ * 注意是**先转义再替换** —— 顺序反了的话正文里的 < 会被当成标签。
+ */
+function markWord(sent, word) {
+  const body = esc(sent || '');
+  const w = (word || '').trim();
+  if (!w) return body;
+  const stem = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  try {
+    return body.replace(
+      new RegExp('(?<![A-Za-z])(' + stem + '(?:s|es|ed|d|ing)?)(?![A-Za-z])', 'gi'),
+      '<em class="qhit">$1</em>');
+  } catch (e) {
+    return body;                                   // 正则出问题就原样显示
+  }
 }
 
 async function checkOtherWord(typed, answer) {
