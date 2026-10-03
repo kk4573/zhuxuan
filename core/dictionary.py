@@ -508,59 +508,110 @@ _IRREGULAR = {
 }
 
 
-def lemma(word: str) -> str:
-    """把常见变形还原成原形。
+def looks_like_lemma(word: str) -> bool:
+    """这个词本身是不是原形？
 
-    **只做单复数和时态语态**（题目要求），不做词性还原 —— `record` 的 n. / v.
-    在词典里本来就是同一词条的不同词性，不需要拆。
-    还原结果**必须能在词典里查到**才算数（见 mini()），所以宁可少还原也别还原错。
-    返回空串表示"看不出是个变形"。
+    判据来自有道自己：**原形**会带一整套词形变化（复数 / 第三人称单数 / 现在分词 /
+    过去式 / 过去分词），而**变形词和罕见词这一栏都是空的**。实测：
+
+        record     → 复数 records、过去式 recorded …   → 是原形
+        abandoned  → （空）                            → 是变形，该还原
+        nosed      → （空）                            → 是变形
+        recor      → （空）                            → 罕见词，不是 record 的原形
+
+    有了这个判据，`record` 就不会被误拆成 `recor` 了。
+    """
+    w = (word or "").strip()
+    if not w:
+        return False
+    # -ing 结尾的词，词典往往也单独收录成名词（making 制作 / building 建筑物 /
+    # running 跑步），wfs 因此非空、会被判成"原形"。但**例句里它们多半是进行时**，
+    # 还原成动词更贴原意（making → make）。所以这一类不走"原形"这条路。
+    low = w.lower()
+    if low.endswith("ing") and len(low) > 5:
+        return False
+    try:
+        data = json.loads(_get(JSON_API + urllib.parse.quote(w)).decode("utf-8", "ignore"))
+    except Exception:
+        return False                    # 网络不通时宁可当它不是原形，走保险的候选链
+    return bool(_as_list(_dig(data, "ec", "word", "wfs")))
+
+
+def lemma_candidates(word: str) -> list[str]:
+    """列出可能的原形，**按「改动越小越可信」排序**。
+
+    为什么要多个候选：`nosed` 既像 `nose + d`，也像 `nos + ed`。
+    只取一个规则的话必然有一类词会错。这里把两种都列出来，
+    让 mini() 逐个去词典验证（`nose` 排在前面，所以会被选中）。
+
+    只处理单复数 / 时态语态 / 比较级，**不做词性还原**。
     """
     low = (word or "").strip().lower()
     if not low or len(low) < 3:
-        return ""
+        return []
     if low in _IRREGULAR:
-        return _IRREGULAR[low]
+        return [_IRREGULAR[low]]
 
-    # ---- 复数 / 第三人称单数 ----
-    if low.endswith("ies") and len(low) > 4:
-        return low[:-3] + "y"                     # studies → study
-    if low.endswith("ves") and len(low) > 4:
-        return low[:-3] + "f"                     # 规则情况；不规则的上面表里已收
-    if low.endswith(("ches", "shes", "xes", "zes", "sses")) and len(low) > 4:
-        return low[:-2]                           # watches → watch
+    out: list[str] = []
+
+    def add(x: str) -> None:
+        if x and x != low and len(x) >= 2 and x not in out:
+            out.append(x)
+
+    # ---------- 只去掉 1 个字符（最保守）----------
+    # 注意 -ed 的两种拆法要排对：
+    #   nose + d  → nosed    （e 结尾的动词加 d）
+    #   pass + ed → passed   （ss/sh/ch/x/z 结尾的动词加 ed）
+    # 拼写上 nosed / passed 结构一样，只能靠"倒数第三个字母是不是 ss/sh/ch/x/z"来分。
+    if low.endswith("ed") and len(low) > 3:
+        if low[:-2].endswith(("ss", "sh", "ch", "x", "z")):
+            add(low[:-2])                          # passed → pass
+            add(low[:-1])                          # passe（少见，备用）
+        else:
+            add(low[:-1])                          # nosed → nose
+    elif low.endswith("d") and len(low) > 3:
+        add(low[:-1])
     if low.endswith("s") and not low.endswith(("ss", "us", "is", "ous")) and len(low) > 3:
-        return low[:-1]                           # odours → odour
+        add(low[:-1])                              # odours → odour
 
-    # ---- 过去式 / 过去分词 ----
+    # ---------- 去掉 2~3 个字符 ----------
+    if low.endswith("ies") and len(low) > 4:
+        add(low[:-3] + "y")                        # studies → study
+    if low.endswith("ves") and len(low) > 4:
+        add(low[:-3] + "f")                        # knives → knife（不规则的上面表里已收）
+    if low.endswith(("ches", "shes", "xes", "zes", "sses")) and len(low) > 4:
+        add(low[:-2])                              # watches → watch
     if low.endswith("ied") and len(low) > 4:
-        return low[:-3] + "y"                     # studied → study
+        add(low[:-3] + "y")                        # cried → cry
     if low.endswith("ed") and len(low) > 3:
         stem = low[:-2]
-        # stop → stopped（辅音双写要退一个）
         if len(stem) >= 3 and stem[-1] == stem[-2] and stem[-1] not in "aeiouy":
-            return stem[:-1]
-        if stem.endswith("i"):                    # cried 之类已经在 ied 分支处理
-            return stem[:-1] + "y"
-        return stem                               # abandoned → abandon
-
-    # ---- 现在分词 ----
+            add(stem[:-1])                         # stopped → stop
+        add(stem)                                  # abandoned → abandon
     if low.endswith("ing") and len(low) > 4:
         stem = low[:-3]
         if len(stem) >= 3 and stem[-1] == stem[-2] and stem[-1] not in "aeiouy":
-            return stem[:-1]                      # stopping → stop
-        return stem                               # abandoning → abandon
-
-    # ---- 比较级 / 最高级（顺带，例句里也常见）----
+            add(stem[:-1])                         # stopping → stop
+        # making → make（词尾是 k，补个 e 就是原形）；
+        # 但 trying → try，不能补成 trye（那是个爱尔兰人名"特里"）
+        if not stem.endswith(("y", "w", "x")):
+            add(stem + "e")
+        add(stem)                                  # lurking → lurk
+    # ---------- 比较级 / 最高级 ----------
     for tail, cut in (("iest", 4), ("est", 3), ("ier", 3), ("er", 2)):
         if low.endswith(tail) and len(low) > cut + 1:
             stem = low[:-cut] + ("y" if tail.startswith("i") else "")
-            # big → biggest 这种辅音双写要退一个
             if len(stem) >= 3 and stem[-1] == stem[-2] and stem[-1] not in "aeiouy":
-                stem = stem[:-1]
-            return stem
+                stem = stem[:-1]                   # biggest → big
+            add(stem)
 
-    return ""
+    return out
+
+
+def lemma(word: str) -> str:
+    """最可信的那个原形（`lemma_candidates` 的第一个）。看不出是变形就返回空串。"""
+    c = lemma_candidates(word)
+    return c[0] if c else ""
 
 
 def mini(word: str) -> dict:
@@ -577,29 +628,45 @@ def mini(word: str) -> dict:
 
     def one(cand: str) -> dict | None:
         info = lookup(cand)                       # 自带 dict_cache 缓存
-        if not info.get("ok") or not info.get("cn"):
+        cn = (info.get("cn") or "").strip()
+        if not info.get("ok") or not cn:
+            return None
+        # 两种"不像正常释义"的候选都跳过：
+        #   · 只给缩写的：making 去掉 ing 得到 mak → 「abbr. 多次激活密钥」
+        #   · 只给变形说明的：studied 去掉 ed 得到 studie → 「（study 的旧式）」
+        # 跳过它们，候选链就会自动往下走到真正的原形（make / study）。
+        if re.match(r"^(abbr|缩写|缩略|简写)", cn, re.I):
+            return None
+        if re.search(r"的(旧式|复数形式|过去式|过去分词|现在分词|比较级|最高级"
+                     r"|第三人称单数|变体|异体|复数)", cn):
             return None
         # 只要第一条：cn 形如 "n. 甲；乙 / v. 丙"，取到第一个 "/" 或第一个 "；" 为止
-        first = re.split(r"\s*/\s*", info["cn"])[0]
+        first = re.split(r"\s*/\s*", cn)[0]
         first = re.split(r"[；;]", first)[0].strip().rstrip("，,、")
         return {"ok": True, "en": cand, "form": raw, "cn": first,
                 "pos": info.get("pos", ""), "ph": info.get("ph", "")}
 
-    # 先试还原原型 —— 例句里的词多半是变形（abandoned / children / was），
-    # 直接查原样的话，有道常常只给一句「child 的复数形式」这种变形说明，不是释义；
-    # 或者给了 abandoned 的形容词义，而句子里它是动词。还原成原型更贴原意。
-    base = lemma(raw)
-    if base and base.lower() != raw.lower():
+    plain = one(raw)
+
+    # ① 它自己就是原形（有道给了词形变化）→ 直接用，别乱拆。
+    #    否则 record 会被拆成 recor（"生理记录仪"，是型号名）。
+    if plain and looks_like_lemma(raw):
+        plain["in_library"] = db.find_word(plain["en"]) is not None
+        return plain
+
+    # ② 是变形（abandoned / children / nosed / was…）→ 按可信度逐个候选去试。
+    #    直接查变形词的话，有道常常只回一句「child 的复数形式」这种变形说明，
+    #    或者给 abandoned 的形容词义，而句子里它是动词。
+    for base in lemma_candidates(raw):
         hit = one(base)
         if hit:
             hit["in_library"] = db.find_word(base) is not None
             return hit
 
-    # 还原不出来（或者还原错了、查不到）就用原样查
-    hit = one(raw)
-    if hit:
-        hit["in_library"] = db.find_word(hit["en"]) is not None
-        return hit
+    # ③ 候选都不行，退回原样（能让用户看到点东西，总比什么都不弹强）
+    if plain:
+        plain["in_library"] = db.find_word(plain["en"]) is not None
+        return plain
 
     return {"ok": False, "form": raw}
 

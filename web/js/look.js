@@ -211,6 +211,7 @@ function renderLook(r) {
       toast(res && res.existing ? '已在词库中，已加进当前词库：' + r.en : '已加入词库：' + r.en, 'ok');
       doLookup(r.en);              // 重新渲染，这回会显示「已在词库」
       loadStats();
+      if (typeof refreshBookSelects === 'function') refreshBookSelects();
     } catch (e) {
       add.disabled = false;
       add.textContent = '＋ 加入词库';

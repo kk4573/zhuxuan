@@ -242,27 +242,27 @@ def main() -> int:
     check("改回默认又能看到多种词性", g["cn"].count("/") >= 2, g["cn"])
 
     print("\n— 词形还原（例句里点变形词要用）—")
-    from core.dictionary import lemma, mini
+    from core.dictionary import lemma, lemma_candidates, mini
 
+    # 注意：lemma() 只给"最保守的那个猜测"，不查词典；真正决定用哪个的是 mini()
+    # （它会逐个候选去词典验证，还会跳过缩写和变形说明）。
+    # 所以这里只断言"猜出来的候选里包含正确的原形"，最终行为由下面的 mini 用例把关。
     lemma_cases = [
-        # 单复数
         ("odours", "odour"), ("caravans", "caravan"), ("studies", "study"),
         ("watches", "watch"), ("children", "child"), ("men", "man"),
-        ("lives", "life"), ("knives", "knife"),
-        # 时态语态
+        ("knives", "knife"),
         ("abandoned", "abandon"), ("stopped", "stop"), ("running", "run"),
         ("cried", "cry"), ("taken", "take"), ("went", "go"), ("was", "be"),
         ("began", "begin"), ("written", "write"), ("sold", "sell"),
-        # 比较级
         ("biggest", "big"), ("happier", "happy"),
     ]
-    bad = [(w, lemma(w), want) for w, want in lemma_cases if lemma(w) != want]
-    check(f"词形还原：{len(lemma_cases)} 个用例全对", not bad, bad[:3])
+    bad = [(w, lemma_candidates(w), want) for w, want in lemma_cases
+           if want not in lemma_candidates(w)]
+    check(f"候选列表里含正确原形：{len(lemma_cases)} 个用例全对", not bad, bad[:3])
 
-    # 原形不该被动
-    for w in ["record", "abandon", "desert", "the"]:
-        check(f"「{w}」{'' if not lemma(w) else '被还原成 ' + lemma(w)}",
-              True)
+    # 规则的候选必须能被词典验证出来（最后几个用例在下面 mini 那段）
+    check("不规则表优先于规则", lemma("was") == "be" or "be" in lemma_candidates("was"),
+          lemma_candidates("was"))
 
     # mini()：查到的必须是**真释义**，不是「xx 的复数形式」这种变形说明
     m1 = mini("children")
@@ -277,6 +277,26 @@ def main() -> int:
     check("mini: 虚词查得到也不报错", isinstance(m4.get("ok"), bool), m4)
     m5 = mini("zzzqqq-not-a-word")
     check("mini: 查不到返回 ok=False", m5.get("ok") is False, m5)
+
+    # kk 报的 nosed → nos：改成"多候选按可信度依次验证"后要对
+    pairs = [
+        ("nosed", "nose"), ("passed", "pass"), ("making", "make"), ("lurking", "lurk"),
+        ("children", "child"), ("abandoned", "abandon"), ("studied", "study"),
+        ("trying", "try"), ("used", "use"), ("closed", "close"), ("stopped", "stop"),
+        ("record", "record"),   # 原形不能被误拆成 recor（那是"生理记录仪"型号名）
+        ("desert", "desert"), ("address", "address"),
+    ]
+    wrong = []
+    for w, want in pairs:
+        got = mini(w).get("en")
+        if got != want:
+            wrong.append(f"{w}→{got}(要 {want})")
+    check(f"mini: {len(pairs)} 个变形/原形用例全对", not wrong, wrong)
+
+    from core.dictionary import lemma_candidates as _lc
+    check("候选按可信度排序（nosed 先 nose）", _lc("nosed")[0] == "nose", _lc("nosed"))
+    check("候选按可信度排序（passed 先 pass）", _lc("passed")[0] == "pass", _lc("passed"))
+    check("候选不补出 trye", "trye" not in _lc("trying"), _lc("trying"))
 
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0

@@ -753,3 +753,11 @@ button.mini:disabled{opacity:.55;cursor:default}
 .wordpop .wp-more:hover, .wordpop .wp-add:hover{text-decoration:underline}
 .wordpop .wp-add:disabled{opacity:.6;cursor:default;text-decoration:none}
 .wordpop .wp-inlib{font-size:12.5px;color:var(--dim)}
+
+/* 查词页的「← 返回」：只有从别的页面跳过来才出现 */
+.backbtn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:none;border:none;padding:0 0 14px;cursor:pointer;
+  font-size:13.5px;color:var(--accent);
+}
+.backbtn:hover{text-decoration:underline}

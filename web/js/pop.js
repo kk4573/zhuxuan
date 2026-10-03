@@ -114,11 +114,11 @@ async function openWordPop(span) {
   if (my !== POP.seq || POP.at !== span) return;   // 已经点了别的词
   if (!r || !r.ok) { closeWordPop(); return; }     // 虚词、查不到的就别弹
 
-  const isForm = (r.en || '').toLowerCase() !== raw.toLowerCase();
+  // 直接显示**原型**：例句里是 lurking，框里就写 lurk —— 查的就是它，
+  // 顶上加个「lurking」反而让人以为要查那个变形。
   el.innerHTML =
     '<div class="wp-head">' +
-      '<b class="wp-word">' + esc(raw) + '</b>' +
-      (isForm ? '<span class="wp-base">' + esc(r.en) + '</span>' : '') +
+      '<b class="wp-word">' + esc(r.en || raw) + '</b>' +
       (r.ph ? '<span class="wp-ph">' + esc(r.ph) + '</span>' : '') +
       '<button class="wp-spk" title="朗读">🔊</button>' +
     '</div>' +
@@ -150,8 +150,11 @@ async function openWordPop(span) {
       await api('POST', '/api/words', { en: r.en || raw, cn: r.cn, pos: r.pos || '', ph: r.ph || '' });
       add.outerHTML = '<span class="wp-inlib">已加入词库</span>';
       toast('已加入词库', 'ok');
+      // 三处计数都要刷：顶栏、词库下拉里的「名字（N）」、词库页的「共 N 个词」。
+      // 只调 loadWords 是不够的 —— 它只管单词列表，下拉和顶栏都不会动（kk 报的计数不变）。
       if (typeof loadWords === 'function') loadWords();
-      loadStats();
+      if (typeof refreshBookSelects === 'function') refreshBookSelects();
+      if (typeof loadStats === 'function') loadStats();
     } catch (e) {
       add.disabled = false;
       add.textContent = '＋ 加入词库';

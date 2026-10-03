@@ -107,7 +107,8 @@ def main() -> int:
                 "clearCache", "cacheCount",
                 "studyBook", "libBook", "lookBook", "importBook", "addBook",
                 "newBookBtn", "newBookModal", "newBookName", "newBookOk",
-                "newBookCancel", "bookModal", "bookList", "bookClose", "vocabSel", "vocabImport", "bookManageBtn"):
+                "newBookCancel", "bookModal", "bookList", "bookClose", "vocabSel", "vocabImport", "bookManageBtn",
+             "lookBack"):
         check(f"关键元素 #{sel} 存在", sel in html_ids)
 
 
@@ -168,6 +169,21 @@ def main() -> int:
     field_rule = re.search(r"\.field\{([^}]*)\}", css3)
     check("答题页 .field 仍然有定位（那边的喇叭也靠它）",
           field_rule is not None and "position:relative" in field_rule.group(1).replace(" ", ""))
+
+    # ---- 加词之后，三处计数都得刷 ----
+    # kk 报过"从例句加入词库后计数不变"：pop.js 只调了 loadWords（刷新单词列表），
+    # 词库下拉和顶栏都不会动。这里盯着三个入口都要有 refreshBookSelects。
+    for fn in ("pop.js", "look.js", "study.js", "lib.js"):
+        src = (WEB / "js" / fn).read_text(encoding="utf-8")
+        if "api('POST', '/api/words'" in src or "/api/words', {" in src:
+            check(f"{fn} 加词后会刷词库下拉",
+                  "refreshBookSelects" in src, "它里面有加词的调用，却没有刷下拉")
+
+    # ---- 查词页的返回按钮 ----
+    base = (WEB / "js" / "base.js").read_text(encoding="utf-8")
+    check("showView 会记住查词页的来源", "S.lookFrom" in base)
+    check("有 renderLookBack 并且会切换显隐",
+          "function renderLookBack" in base and "btn.hidden" in base)
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 

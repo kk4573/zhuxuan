@@ -232,6 +232,7 @@ async function checkOtherWord(typed, answer) {
       btn.outerHTML = '<span class="dim">✓ 已加入词库</span>';
       toast('已加入词库：' + r.en, 'ok');
       loadStats();
+      if (typeof refreshBookSelects === 'function') refreshBookSelects();
     } catch (e) {
       btn.disabled = false;
       btn.textContent = '＋ 加入词库';
@@ -283,6 +284,7 @@ async function finishSession(early) {
   $('#againBtn').onclick = () => { showPhase('ready'); loadStats(); };
   $('#toLibBtn').onclick = () => showView('lib');
   loadStats();
+  if (typeof refreshBookSelects === 'function') refreshBookSelects();
 }
 
 
