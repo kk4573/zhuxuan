@@ -43,8 +43,11 @@ function makeEl(id) {
     files: [],
     classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
     addEventListener() {}, removeEventListener() {}, focus() {}, blur() {}, click() {},
-    appendChild() {}, closest() { return null; }, querySelector() { return makeEl(); },
-    querySelectorAll() { return []; }, scrollIntoView() {}, removeAttribute() {},
+    appendChild() {}, contains() { return true; }, closest() { return null; },
+    querySelector() { return makeEl(); },
+    querySelectorAll() { return []; }, scrollIntoView() {}, removeAttribute() {}, setAttribute() {},
+    // 弹框定位要用；缺了它 placeWordPop 会抛错，后面的断言就全是假的（踩过）
+    getBoundingClientRect() { return { left: 10, top: 10, right: 70, bottom: 32, width: 60, height: 22 }; },
   };
   // 访问未知属性时也给个元素，避免任何一处 null 炸掉
   el.parentElement = el;      // 自指，省得递归创建（代码里只用到一层）
@@ -73,6 +76,7 @@ const sandbox = {
     querySelector: (s) => (elStore[s] = elStore[s] || makeEl(s)),
     querySelectorAll: () => [],
     addEventListener: (t, fn) => listeners.push(['document:' + t, fn]),
+    removeEventListener() {},
     createElement: () => makeEl(),
   },
   window: {
@@ -204,6 +208,81 @@ try {
   check('例句高亮：空单词安全', esc2 === 'hello world');
 } catch (e) {
   check('例句高亮能跑', false, String(e));
+}
+
+
+// ---------- 例句里点单词弹出的小框 ----------
+console.log('\n— 点词弹框 —');
+const popChecks = [];
+try {
+  vm.runInContext('bindWordPop()', ctx);
+  check('bindWordPop() 能正常执行', true);
+} catch (e) {
+  check('bindWordPop() 能正常执行', false, String(e));
+}
+
+try {
+  // tokenizeSentence：每个词都要能点，答案那个额外高亮
+  const html = vm.runInContext(`tokenizeSentence('SO2 is a colourless gas with a sharp odour.', 'odour')`, ctx);
+  const words = [...html.matchAll(/data-w="([^"]*)"/g)].map((m) => m[1]);
+  check('例句切出 9 个可点的词', words.length === 9, words);
+  check('答案词带高亮标记', html.includes('wd qhit'),
+        (html.match(/class="wd[^"]*"/g) || []).join(' '));
+  check('标点不进词里（结尾的句号单独）', !words.includes('odour.'), words.slice(-2));
+
+  // 变形词高亮：odours 应该也算 odour 那个答案
+  const h2 = vm.runInContext(`tokenizeSentence('The odours were strong.', 'odour')`, ctx);
+  check('变形词也算同一个答案（odours 高亮）', (h2.match(/wd qhit/g) || []).length === 1, h2);
+
+  // 两次切词不能把转义搞坏
+  const h3 = vm.runInContext(`tokenizeSentence('a < b & c', 'a')`, ctx);
+  check('例句里的特殊符号被转义', h3.includes('&lt;') && h3.includes('&amp;'), h3);
+} catch (e) {
+  check('tokenizeSentence 能跑', false, String(e));
+}
+
+
+
+try {
+  // 1) 事件委托：点 .wd 应该认出来并交给 openWordPop
+  const fakeSpan = makeEl('span');
+  fakeSpan.dataset = { w: 'colourless' };
+  const evt = {
+    target: { closest: (sel) => (sel === '.wd[data-w]' ? fakeSpan : null) },
+    preventDefault() {}, stopPropagation() {},
+  };
+  const docClick = listeners.filter((l) => l[0] === 'document:click').map((l) => l[1]).pop();
+  check('bindWordPop 挂上了 document 的 click 监听', typeof docClick === 'function',
+        listeners.map((l) => l[0]));
+
+  const oldFetch = sandbox.fetch;
+  sandbox.fetch = async () => ({
+    ok: true, status: 200,
+    json: async () => ({ ok: true, en: 'colourless', form: 'colourless',
+                         cn: 'adj. 无色的', pos: 'adj.', ph: 'kʌlələs', in_library: false }),
+  });
+
+  // 2) 直接调 openWordPop（比走点击链路稳，不依赖假 DOM 的事件冒泡细节）
+  sandbox.__span = fakeSpan;
+  vm.runInContext('openWordPop(__span)', ctx);
+  const pop = vm.runInContext('POP.el', ctx);
+  check('点词之后弹框被创建', !!pop);
+  check('点词之后弹框显示出来了（不是 hidden）', pop && pop.hidden === false, pop && pop.hidden);
+  check('弹框里填了内容', pop && String(pop.innerHTML || '').length > 0,
+        pop && String(pop.innerHTML).slice(0, 60));
+  // 定位：placeWordPop 得真的算出一个坐标摆上去，不然框会叠在左上角
+  check('弹框被摆到了某个坐标上', pop && pop.style && pop.style.left !== undefined
+        && pop.style.left !== '' && pop.style.top !== '', pop && pop.style);
+
+  // 3) 关掉之后要真的收起来
+  vm.runInContext('closeWordPop()', ctx);
+  check('关掉之后弹框是 hidden', pop && pop.hidden === true, pop && pop.hidden);
+
+  // 3) 再走一遍"点别处就关"的链路
+  if (typeof docClick === 'function') docClick(evt);
+  sandbox.fetch = oldFetch;
+} catch (e) {
+  check('点词不会抛异常', false, String(e));
 }
 
 (async () => {

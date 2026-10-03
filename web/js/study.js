@@ -174,7 +174,7 @@ async function loadSentence(word, kind) {
     if (my !== sentSeq) return;                    // 已经翻到下一题了
     if (!r || !r.ok || !r.sent) return;
     box.innerHTML =
-      '<div class="qsenten">' + markWord(r.sent, word) + '</div>' +
+      '<div class="qsenten">' + tokenizeSentence(r.sent, word) + '</div>' +
       (r.cn ? '<div class="qsentcn">' + esc(r.cn) + '</div>' : '');
   } catch (e) { /* 取不到就算了 */ }
 }

@@ -472,6 +472,138 @@ def lookup_full(word: str, force: bool = False) -> dict:
     db.dict_put(word, out["cn"], out["pos"], out["ph"], "youdao")   # 顺带喂给词库那份
     return out
 
+# 常见不规则变形 → 原形。规则还原（加 s / ed / ing）能覆盖大多数，
+# 但 was / went / children 这类必须查表；这里只收**最常见**的，
+# 没收录的走规则还原，再不行就退回原词 —— 宁可不还原，也别还原错。
+_IRREGULAR = {
+    # be / have / do / go
+    "am": "be", "is": "be", "are": "be", "was": "be", "were": "be", "been": "be",
+    "has": "have", "had": "have", "does": "do", "did": "do", "done": "do",
+    "goes": "go", "went": "go", "gone": "go",
+    # 高频动词
+    "said": "say", "made": "make", "took": "take", "taken": "take", "got": "get",
+    "gotten": "get", "came": "come", "saw": "see", "seen": "see", "knew": "know",
+    "known": "know", "gave": "give", "given": "give", "found": "find",
+    "thought": "think", "told": "tell", "became": "become", "become": "become",
+    "left": "leave", "felt": "feel", "brought": "bring", "began": "begin",
+    "begun": "begin", "kept": "keep", "held": "hold", "wrote": "write",
+    "written": "write", "stood": "stand", "heard": "hear", "meant": "mean",
+    "met": "meet", "ran": "run", "paid": "pay", "sat": "sit", "spoke": "speak",
+    "spoken": "speak", "led": "lead", "grew": "grow", "grown": "grow",
+    "lost": "lose", "fell": "fall", "fallen": "fall", "sent": "send",
+    "built": "build", "understood": "understand", "drew": "draw", "drawn": "draw",
+    "broke": "break", "broken": "break", "spent": "spend", "rose": "rise",
+    "risen": "rise", "drove": "drive", "driven": "drive", "bought": "buy",
+    "wore": "wear", "worn": "wear", "chose": "choose", "chosen": "choose",
+    "ate": "eat", "eaten": "eat", "sold": "sell", "sang": "sing", "sung": "sing",
+    "swam": "swim", "swum": "swim", "threw": "throw", "thrown": "throw",
+    "caught": "catch", "taught": "teach", "fought": "fight", "sought": "seek",
+    "lay": "lie", "laid": "lay", "shook": "shake", "shaken": "shake",
+    # 不规则复数
+    "children": "child", "men": "man", "women": "woman", "feet": "foot",
+    "teeth": "tooth", "mice": "mouse", "geese": "goose", "people": "person",
+    "lives": "life", "knives": "knife", "wives": "wife", "wolves": "wolf",
+    "leaves": "leaf", "thieves": "thief", "shelves": "shelf", "halves": "half",
+    "loaves": "loaf", "selves": "self",
+}
+
+
+def lemma(word: str) -> str:
+    """把常见变形还原成原形。
+
+    **只做单复数和时态语态**（题目要求），不做词性还原 —— `record` 的 n. / v.
+    在词典里本来就是同一词条的不同词性，不需要拆。
+    还原结果**必须能在词典里查到**才算数（见 mini()），所以宁可少还原也别还原错。
+    返回空串表示"看不出是个变形"。
+    """
+    low = (word or "").strip().lower()
+    if not low or len(low) < 3:
+        return ""
+    if low in _IRREGULAR:
+        return _IRREGULAR[low]
+
+    # ---- 复数 / 第三人称单数 ----
+    if low.endswith("ies") and len(low) > 4:
+        return low[:-3] + "y"                     # studies → study
+    if low.endswith("ves") and len(low) > 4:
+        return low[:-3] + "f"                     # 规则情况；不规则的上面表里已收
+    if low.endswith(("ches", "shes", "xes", "zes", "sses")) and len(low) > 4:
+        return low[:-2]                           # watches → watch
+    if low.endswith("s") and not low.endswith(("ss", "us", "is", "ous")) and len(low) > 3:
+        return low[:-1]                           # odours → odour
+
+    # ---- 过去式 / 过去分词 ----
+    if low.endswith("ied") and len(low) > 4:
+        return low[:-3] + "y"                     # studied → study
+    if low.endswith("ed") and len(low) > 3:
+        stem = low[:-2]
+        # stop → stopped（辅音双写要退一个）
+        if len(stem) >= 3 and stem[-1] == stem[-2] and stem[-1] not in "aeiouy":
+            return stem[:-1]
+        if stem.endswith("i"):                    # cried 之类已经在 ied 分支处理
+            return stem[:-1] + "y"
+        return stem                               # abandoned → abandon
+
+    # ---- 现在分词 ----
+    if low.endswith("ing") and len(low) > 4:
+        stem = low[:-3]
+        if len(stem) >= 3 and stem[-1] == stem[-2] and stem[-1] not in "aeiouy":
+            return stem[:-1]                      # stopping → stop
+        return stem                               # abandoning → abandon
+
+    # ---- 比较级 / 最高级（顺带，例句里也常见）----
+    for tail, cut in (("iest", 4), ("est", 3), ("ier", 3), ("er", 2)):
+        if low.endswith(tail) and len(low) > cut + 1:
+            stem = low[:-cut] + ("y" if tail.startswith("i") else "")
+            # big → biggest 这种辅音双写要退一个
+            if len(stem) >= 3 and stem[-1] == stem[-2] and stem[-1] not in "aeiouy":
+                stem = stem[:-1]
+            return stem
+
+    return ""
+
+
+def mini(word: str) -> dict:
+    """例句里点某个单词时用：给它的**最主要那一条**释义，外加原形和音标。
+
+    查询顺序：先按原样查（有道对变形词往往也能直接给），查不到再还原原型查。
+    两次都查不到就返回 ok=False，前端不弹框。
+
+    返回 {ok, en(原形/词条), form(例句里那个词形), cn, pos, ph, in_library}
+    """
+    raw = (word or "").strip().strip(".,;:!?\"'‘’“”()[]{}")
+    if not raw or not re.search(r"[A-Za-z]", raw):
+        return {"ok": False}
+
+    def one(cand: str) -> dict | None:
+        info = lookup(cand)                       # 自带 dict_cache 缓存
+        if not info.get("ok") or not info.get("cn"):
+            return None
+        # 只要第一条：cn 形如 "n. 甲；乙 / v. 丙"，取到第一个 "/" 或第一个 "；" 为止
+        first = re.split(r"\s*/\s*", info["cn"])[0]
+        first = re.split(r"[；;]", first)[0].strip().rstrip("，,、")
+        return {"ok": True, "en": cand, "form": raw, "cn": first,
+                "pos": info.get("pos", ""), "ph": info.get("ph", "")}
+
+    # 先试还原原型 —— 例句里的词多半是变形（abandoned / children / was），
+    # 直接查原样的话，有道常常只给一句「child 的复数形式」这种变形说明，不是释义；
+    # 或者给了 abandoned 的形容词义，而句子里它是动词。还原成原型更贴原意。
+    base = lemma(raw)
+    if base and base.lower() != raw.lower():
+        hit = one(base)
+        if hit:
+            hit["in_library"] = db.find_word(base) is not None
+            return hit
+
+    # 还原不出来（或者还原错了、查不到）就用原样查
+    hit = one(raw)
+    if hit:
+        hit["in_library"] = db.find_word(hit["en"]) is not None
+        return hit
+
+    return {"ok": False, "form": raw}
+
+
 def first_sentence(word: str) -> dict:
     """取这个单词的一句例句（背单词提交后显示用）。
 

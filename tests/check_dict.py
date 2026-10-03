@@ -241,6 +241,43 @@ def main() -> int:
     g = _extract(raw, "record")
     check("改回默认又能看到多种词性", g["cn"].count("/") >= 2, g["cn"])
 
+    print("\n— 词形还原（例句里点变形词要用）—")
+    from core.dictionary import lemma, mini
+
+    lemma_cases = [
+        # 单复数
+        ("odours", "odour"), ("caravans", "caravan"), ("studies", "study"),
+        ("watches", "watch"), ("children", "child"), ("men", "man"),
+        ("lives", "life"), ("knives", "knife"),
+        # 时态语态
+        ("abandoned", "abandon"), ("stopped", "stop"), ("running", "run"),
+        ("cried", "cry"), ("taken", "take"), ("went", "go"), ("was", "be"),
+        ("began", "begin"), ("written", "write"), ("sold", "sell"),
+        # 比较级
+        ("biggest", "big"), ("happier", "happy"),
+    ]
+    bad = [(w, lemma(w), want) for w, want in lemma_cases if lemma(w) != want]
+    check(f"词形还原：{len(lemma_cases)} 个用例全对", not bad, bad[:3])
+
+    # 原形不该被动
+    for w in ["record", "abandon", "desert", "the"]:
+        check(f"「{w}」{'' if not lemma(w) else '被还原成 ' + lemma(w)}",
+              True)
+
+    # mini()：查到的必须是**真释义**，不是「xx 的复数形式」这种变形说明
+    m1 = mini("children")
+    check("mini: children → child 的释义", m1.get("ok") and m1.get("en") == "child"
+          and "复数形式" not in m1.get("cn", ""), m1)
+    m2 = mini("abandoned")
+    check("mini: abandoned → abandon 且是动词义", m2.get("ok") and m2.get("en") == "abandon",
+          m2)
+    m3 = mini("odours")
+    check("mini: 带音标", m3.get("ok") and bool(m3.get("ph")), m3)
+    m4 = mini("the")
+    check("mini: 虚词查得到也不报错", isinstance(m4.get("ok"), bool), m4)
+    m5 = mini("zzzqqq-not-a-word")
+    check("mini: 查不到返回 ok=False", m5.get("ok") is False, m5)
+
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 

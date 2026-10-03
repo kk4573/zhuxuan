@@ -72,7 +72,7 @@ function lookSents(r) {
   if (!r.sents || !r.sents.length) return '';
   const items = r.sents.map((s) =>
     '<div class="sent">' +
-      '<div class="sent-en">' + highlight(s.en, r.en) + '</div>' +
+      '<div class="sent-en">' + tokenizeSentence(s.en, r.en) + '</div>' +
       (s.cn ? '<div class="sent-cn">' + esc(s.cn) + '</div>' : '') +
       (s.src ? '<div class="sent-src">' + esc(s.src) + '</div>' : '') +
     '</div>').join('');
@@ -147,7 +147,7 @@ function lookMore(r) {
   if (m.auth && m.auth.length) {
     parts.push('<h6>报刊例句</h6>' +
       m.auth.map((s) =>
-        '<div class="sent"><div class="sent-en">' + esc(s.en) + '</div>' +
+        '<div class="sent"><div class="sent-en">' + tokenizeSentence(s.en, '') + '</div>' +
         (s.src ? '<div class="sent-src">' + esc(s.src) + '</div>' : '') + '</div>').join(''));
   }
 
@@ -221,6 +221,16 @@ function renderLook(r) {
 
 
 /* ==================== 查词页的元素绑定 ==================== */
+
+/** 把某个词填进查词框（例句里点「更多」跳过来时用）。 */
+function setLookInput(w) {
+  const inp = $('#lookInput');
+  if (!inp) return;
+  inp.value = w || '';
+  const cl = $('#lookClear');
+  if (cl) cl.hidden = !inp.value;
+}
+
 
 function bindLook() {
   const inp = $('#lookInput');

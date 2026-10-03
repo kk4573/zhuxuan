@@ -20,6 +20,7 @@ function init() {
   bindSettings();
   bindLook();
   bindBooks();
+  bindWordPop();
 
 
   // 首次加载

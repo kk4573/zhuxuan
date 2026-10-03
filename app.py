@@ -477,6 +477,16 @@ class CheckWordIn(BaseModel):
     en: str = ""
 
 
+@app.get("/api/word/mini")
+def api_word_mini(w: str = ""):
+    """例句里点某个单词：给它的最主要一条释义（顺带还原原型、带音标）。
+
+    查不到就返回 ok=False，前端不弹框 —— 例句里有 the / of 这种虚词，
+    点它们不该弹东西出来。
+    """
+    return dictionary.mini(w)
+
+
 @app.get("/api/sentence")
 def api_sentence(en: str = ""):
     """背单词提交后那张例句。先查本机缓存，没有再联网取一条。"""
