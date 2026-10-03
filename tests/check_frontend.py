@@ -188,11 +188,13 @@ def main() -> int:
     check("按钮文案就是「← 返回」（不写死「返回词库」）",
           "textContent = '← 返回'" in look and "返回词库" not in look)
     check("返回目标支持「上一个词」", "type: 'word'" in look)
+    check("返回用栈实现（嵌套跳转能一路退回去）", "lookStack.push(" in look)
     check("返回目标支持「上一个页面」", "type: 'view'" in look)
 
     # 自己在查词页查的词不该冒出返回键
     b2 = (WEB / "js" / "base.js").read_text(encoding="utf-8")
-    check("顶栏切到查词页时会清掉返回目标", "S.lookBack = null" in b2)
+    check("顶栏切到别的页面时会清空返回栈", "S.lookStack = []" in b2)
+    check("S 里声明了 lookStack", "lookStack:" in b2)
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 

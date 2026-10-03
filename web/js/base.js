@@ -27,6 +27,7 @@ const S = {
   asked: 0,           // 本轮总作答次数（含重考）
   wrongWords: [],     // 首答没答对的词
   stats: null,
+  lookStack: [],      // 查词页的返回栈（见 look.js 的 openLook）
 };
 
 let wordCache = {};
@@ -144,7 +145,7 @@ $('#goTop').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 function showView(v) {
   // 注意：切到查词页时**不清空**返回目标 —— 用顶栏标签切过去，返回键该消失；
   // 但由 openLook() 带过来的返回目标是它自己设的，这里别抢。
-  if (v !== 'look') S.lookBack = null;
+  if (v !== 'look') S.lookStack = [];
   S.view = v;
   try { if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v); } catch (e) { /* 无所谓 */ }
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === v));

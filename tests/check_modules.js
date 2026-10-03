@@ -286,44 +286,49 @@ try {
 }
 
 
-// ---------- 查词页的返回键（场景） ----------
-console.log('\n— 返回键的返回目标 —');
+// ---------- 查词页的返回键（完整复现 kk 报的三层场景） ----------
+console.log('\n— 返回键：词库 → 词A → 词B → 返回 → 返回 —');
 try {
   const back = sandbox.document.querySelector('#lookBack');
-  const oldFetch2 = sandbox.fetch;
+  const oldFetch3 = sandbox.fetch;
+  // 任何请求都当成功，我们只关心返回栈
   sandbox.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: true }) });
 
-  // ① 自己在查词页查词 → 没有返回目标 → 不该显示返回键
-  vm.runInContext("S.lookBack = null; renderLookBack();", ctx);
-  check('自己查的词：不显示返回键', back.hidden === true, back.hidden);
+  const stack = () => vm.runInContext('S.lookStack.length', ctx);
+  const click = () => { if (typeof back.onclick === 'function') back.onclick(); };
 
-  // ② 从词库页点过来的 → 显示返回键
-  vm.runInContext("S.lookBack = { type: 'view', view: 'lib' }; renderLookBack();", ctx);
-  check('从词库跳过来：显示返回键', back.hidden === false);
+  // ① 自己查词：栈空、无返回键
+  vm.runInContext("S.lookStack = []; renderLookBack();", ctx);
+  check('自己查的词：不显示返回键', back.hidden === true);
+
+  // ② 从词库页点了一个词跳过来
+  vm.runInContext("S.view='lib'; openLook('alpha', { type: 'view', view: 'lib' });", ctx);
+  check('词库 → 词A：栈里有 1 层', stack() === 1, stack());
+  check('词库 → 词A：返回键出现了', back.hidden === false);
   check('按钮文案是「← 返回」', back.textContent === '← 返回', back.textContent);
 
-  // ③ 在查词页里又点了一个词 → 返回目标是**上一个词**
-  vm.runInContext("S.view = 'look'; lookWord = 'abandon';", ctx);
-  vm.runInContext("S.lookBack = { type: 'word', word: 'abandon' }; renderLookBack();", ctx);
-  check('上一个词也在返回目标里', back.hidden === false);
+  // ③ 在查词页里又点了词B的「更多」（pop.js 会这么记）
+  vm.runInContext("S.view='look'; lookWord='alpha';", ctx);
+  vm.runInContext("openLook('beta', { type: 'word', word: 'alpha' });", ctx);
+  check('词A → 词B：栈里有 2 层', stack() === 2, stack());
 
-  // 点返回：应该回到 abandon，而且这次不再有返回键（只保留一层）
-  if (typeof back.onclick === 'function') {
-    const p = back.onclick();
-    if (p && typeof p.then === 'function') {
-      // 异步的，等一拍再看
-      vm.runInContext("setTimeout(() => {}, 0)", ctx);
-    }
-    check('点了返回之后，返回目标被清掉（回到上一个词，不再有返回键）',
-          vm.runInContext('S.lookBack', ctx) === null,
-          vm.runInContext('S.lookBack', ctx));
-  } else {
-    check('返回键绑了点击处理', false, typeof back.onclick);
-  }
+  // ④ 第一次返回 → 回到词A，**返回键还得在**（kk 报的就是这里没了）
+  click();
+  check('返回一次：回到词A', vm.runInContext('lookWord', ctx) === 'alpha',
+        vm.runInContext('lookWord', ctx));
+  check('返回一次后：栈剩 1 层', stack() === 1, stack());
+  check('返回一次后：返回键还在（能继续退回词库）', back.hidden === false, back.hidden);
 
-  sandbox.fetch = oldFetch2;
+  // ⑤ 第二次返回 → 回到词库页，栈清空、返回键消失
+  click();
+  check('返回两次：回到词库页', vm.runInContext('S.view', ctx) === 'lib',
+        vm.runInContext('S.view', ctx));
+  check('返回两次后：栈空了', stack() === 0, stack());
+  check('返回两次后：返回键消失', back.hidden === true, back.hidden);
+
+  sandbox.fetch = oldFetch3;
 } catch (e) {
-  check('返回键场景能跑', false, String(e));
+  check('返回键三层场景能跑', false, String(e));
 }
 
 (async () => {

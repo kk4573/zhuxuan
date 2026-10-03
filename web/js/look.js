@@ -236,15 +236,24 @@ function setLookInput(w) {
 /**
  * 进入查词页看一个词。**所有跳转都走这里**，因为它要记录"从哪来的"。
  *
- * `from` 是返回目标，两种：
- *   { type: 'word', word: 'abandon' }   ← 在查词页里又跳了一个词，返回上一个词
- *   { type: 'view', view: 'lib' }       ← 从别的页面过来的，返回那个页面
- * 传 null 表示"不是跳转过来的"（自己在查词页查的），此时**不显示返回键**。
+ * `from` 是"跳进来之前所处的状态"，会被**压进返回栈**：
+ *   { type: 'word', word: 'abandon' }   ← 原来在看 abandon 这个词
+ *   { type: 'view', view: 'lib' }       ← 原来在词库页
+ *
+ * 用栈而不是单个值 —— 否则「词库 → 词A → 词B」这种嵌套，从 B 退回 A 之后就没法再退回词库了
+ * （kk 报的就是这个）。传 null 表示自己在查词框敲的查询，不算跳转，栈清空、不显示返回键。
  */
 async function openLook(word, from) {
   if (S.view !== 'look') showView('look');
-  S.lookBack = from || null;
+  if (from) S.lookStack.push(from);
+  else S.lookStack = [];
   renderLookBack();
+  await fillLookInput(word);
+}
+
+
+/** 只把查词框填上并查询，**不动返回栈**（返回时就用它，免得把退回去的路又压回去）。 */
+async function fillLookInput(word) {
   const inp = $('#lookInput');
   if (inp) inp.value = word || '';
   const cl = $('#lookClear');
@@ -253,20 +262,23 @@ async function openLook(word, from) {
 }
 
 
-/** 查词页左上角那个「← 返回」：有返回目标才出现。 */
+/** 查词页左上角那个「← 返回」：栈里还有东西才出现。 */
 function renderLookBack() {
   const btn = $('#lookBack');
   if (!btn) return;
-  const back = S.lookBack;
-  if (!back) { btn.hidden = true; return; }
+  if (!S.lookStack.length) { btn.hidden = true; return; }
   btn.hidden = false;
   btn.textContent = '← 返回';
   btn.onclick = () => {
+    const back = S.lookStack.pop();
+    if (!back) { renderLookBack(); return; }
     if (back.type === 'word') {
-      openLook(back.word, null);      // 回到上一个看过的词；再点就没有返回键了
+      fillLookInput(back.word);        // 回到上一个看过的词；栈里可能还有更早的一层
     } else {
+      S.lookStack = [];                // 回到某个页面，这趟跳转就算结束了
       showView(back.view);
     }
+    renderLookBack();
   };
 }
 
