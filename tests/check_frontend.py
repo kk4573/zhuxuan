@@ -195,6 +195,27 @@ def main() -> int:
     b2 = (WEB / "js" / "base.js").read_text(encoding="utf-8")
     check("顶栏切到别的页面时会清空返回栈", "S.lookStack = []" in b2)
     check("S 里声明了 lookStack", "lookStack:" in b2)
+
+    # ---- hidden 属性必须压得住 CSS 的 display ----
+    # hidden 靠 display:none 起作用，优先级很低；类里写了 display:inline-flex 就会盖掉它。
+    # kk 报过"自己查词也显示返回键、点了没反应"，根因就是这个。加一条兜底规则。
+    css4 = re.sub(r"/\*.*?\*/", "", (WEB / "style.css").read_text(encoding="utf-8"), flags=re.S)
+    # 注意正则要卡开头：CSS 里本来就有一条 .phase[hidden]{display:none}，
+    # 不卡开头的话会匹配到它，断言就永远成立了（假绿过）。
+    check("CSS 里有 [hidden] 兜底规则",
+          re.search(r"(?:^|\n)\s*\[hidden\]\s*\{\s*display\s*:\s*none", css4) is not None,
+          "缺了它，任何带 display 的类都能把 hidden 盖掉")
+
+    # 所有用 hidden 切换显示的元素都不该在 CSS 里被 display 覆盖到（兜底规则除外）
+    html4 = (WEB / "index.html").read_text(encoding="utf-8")
+    hidden_ids = set(re.findall(r'id="(\w+)"[^>]*\shidden', html4))
+    risky = []
+    for hid in hidden_ids:
+        for m in re.finditer(r"([^{}]*#" + hid + r"[^{}]*)\{([^}]*)\}", css4):
+            body = m.group(2)
+            if re.search(r"display\s*:\s*(?!none)", body):
+                risky.append(f"#{hid} ← {m.group(1).strip()[:40]}")
+    check("用 hidden 的元素没被 display 覆盖", not risky, risky[:4])
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
 
