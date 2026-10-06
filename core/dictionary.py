@@ -505,6 +505,10 @@ _IRREGULAR = {
     "lives": "life", "knives": "knife", "wives": "wife", "wolves": "wolf",
     "leaves": "leaf", "thieves": "thief", "shelves": "shelf", "halves": "half",
     "loaves": "loaf", "selves": "self",
+    # 不规则比较级 / 最高级
+    "better": "good", "best": "good", "worse": "bad", "worst": "bad",
+    "more": "many", "most": "many", "less": "little", "least": "little",
+    "further": "far", "furthest": "far", "farther": "far", "farthest": "far",
 }
 
 
@@ -525,16 +529,40 @@ def looks_like_lemma(word: str) -> bool:
     if not w:
         return False
     # -ing 结尾的词，词典往往也单独收录成名词（making 制作 / building 建筑物 /
-    # running 跑步），wfs 因此非空、会被判成"原形"。但**例句里它们多半是进行时**，
+    # running 跑步），词形变化因此非空、会被判成"原形"。但**例句里它们多半是进行时**，
     # 还原成动词更贴原意（making → make）。所以这一类不走"原形"这条路。
     low = w.lower()
     if low.endswith("ing") and len(low) > 5:
         return False
+    return bool(word_forms(w))
+
+
+def word_forms(word: str) -> list[str]:
+    """这个词的词形变化（复数 / 第三人称单数 / 现在分词 / 过去式 / 过去分词）。
+
+    **词典只对原形给这一栏**，变形词和罕见词都是空的 —— 两个用途：
+      · 判断一个词是不是原形（见 looks_like_lemma）
+      · 反向验证候选：候选 A 的词形变化里包含例句里那个词 → A 就是原形
+    结果进 wfs_cache，免得每次还原都重问一遍。
+    """
+    w = (word or "").strip()
+    if not w:
+        return []
+    hit = db.wfs_get(w)
+    if hit is not None:
+        return hit
     try:
         data = json.loads(_get(JSON_API + urllib.parse.quote(w)).decode("utf-8", "ignore"))
     except Exception:
-        return False                    # 网络不通时宁可当它不是原形，走保险的候选链
-    return bool(_as_list(_dig(data, "ec", "word", "wfs")))
+        return []                       # 网络不通时不写缓存，下次再试
+    forms: list[str] = []
+    for x in _as_list(_dig(data, "ec", "word", "wfs")):
+        wf = x.get("wf") if isinstance(x.get("wf"), dict) else x
+        v = _text(wf.get("value"))
+        if v and v.lower() not in forms:
+            forms.append(v.lower())
+    db.wfs_put(w, forms)
+    return forms
 
 
 def lemma_candidates(word: str) -> list[str]:
@@ -590,6 +618,10 @@ def lemma_candidates(word: str) -> list[str]:
         add(stem)                                  # abandoned → abandon
     if low.endswith("ing") and len(low) > 4:
         stem = low[:-3]
+        # lying → lie / dying → die / tying → tie：原形是 -ie 结尾的，
+        # 加 ing 时把 ie 写成了 y，还原要把它换回来。
+        if stem.endswith("y") and len(stem) >= 2:
+            add(stem[:-1] + "ie")
         if len(stem) >= 3 and stem[-1] == stem[-2] and stem[-1] not in "aeiouy":
             add(stem[:-1])                         # stopping → stop
         # making → make（词尾是 k，补个 e 就是原形）；
@@ -654,10 +686,25 @@ def mini(word: str) -> dict:
         plain["in_library"] = db.find_word(plain["en"]) is not None
         return plain
 
-    # ② 是变形（abandoned / children / nosed / was…）→ 按可信度逐个候选去试。
-    #    直接查变形词的话，有道常常只回一句「child 的复数形式」这种变形说明，
-    #    或者给 abandoned 的形容词义，而句子里它是动词。
-    for base in lemma_candidates(raw):
+    # ② 是变形（abandoned / children / nosed / was…）→ 还原。
+    #
+    #    候选有好几个（nosed 既像 nose+d 也像 nos+ed），怎么挑？
+    #    **反向验证**：查每个候选的词形变化，里面**包含例句里这个词**的那个就是原形。
+    #      nose 的变化 = noses/nosing/nosed  → 有 nosed → nose 就是它 ✔
+    #      nos  的变化 = （空）              → 排除
+    #    这比"按规则猜"可靠得多，而且判据来自词典本身。
+    cands = lemma_candidates(raw)
+    for base in cands:
+        forms = word_forms(base)
+        if raw.lower() in forms:
+            hit = one(base)
+            if hit:
+                hit["in_library"] = db.find_word(base) is not None
+                hit["verified_by"] = "word-forms"      # 标记一下，方便排查
+                return hit
+
+    # 反向验证没命中（比如不规则动词，词典有时不给变化栏）→ 退回按可信度顺序试
+    for base in cands:
         hit = one(base)
         if hit:
             hit["in_library"] = db.find_word(base) is not None

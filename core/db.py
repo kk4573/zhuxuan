@@ -88,6 +88,14 @@ CREATE TABLE IF NOT EXISTS dict_cache (
     fetched_at TEXT NOT NULL
 );
 
+-- 词形变化（复数 / 过去式 …）。还原"哪个候选才是原形"要靠它，
+-- 而同一个词会被反复问到（每开一轮都要还原一遍例句），所以必须缓存。
+CREATE TABLE IF NOT EXISTS wfs_cache (
+    word       TEXT PRIMARY KEY COLLATE NOCASE,
+    forms      TEXT NOT NULL DEFAULT '',         -- 逗号分隔的词形，如 "noses,nosing,nosed"
+    fetched_at TEXT NOT NULL
+);
+
 -- 背单词时那句例句。单独存一张表：查询频繁、内容小，
 -- 而且 miss 也要记（``sent = ''`` 表示"这个词典里没有例句"），免得每次提交都去问一遍。
 CREATE TABLE IF NOT EXISTS sent_cache (
@@ -573,6 +581,25 @@ def dict_clear_all() -> dict:
         a = conn.execute("DELETE FROM dict_cache").rowcount
         b = conn.execute("DELETE FROM dict_full").rowcount
     return {"dict_cache": a, "dict_full": b}
+
+
+def wfs_get(word: str) -> list[str] | None:
+    """取缓存的词形变化。None = 没查过；[] = 查过，确实没有（闭音节动词等）。"""
+    with cursor() as conn:
+        row = conn.execute(
+            "SELECT forms FROM wfs_cache WHERE word = ? COLLATE NOCASE", (word,)).fetchone()
+    if not row:
+        return None
+    return [x for x in (row["forms"] or "").split(",") if x]
+
+
+def wfs_put(word: str, forms: list[str]) -> None:
+    with cursor() as conn:
+        conn.execute(
+            """INSERT INTO wfs_cache (word, forms, fetched_at) VALUES (?, ?, ?)
+               ON CONFLICT(word) DO UPDATE SET
+                 forms = excluded.forms, fetched_at = excluded.fetched_at""",
+            (word, ",".join(forms or []), now()))
 
 
 def sent_get(word: str) -> dict | None:

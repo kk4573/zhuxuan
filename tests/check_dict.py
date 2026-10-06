@@ -278,13 +278,31 @@ def main() -> int:
     m5 = mini("zzzqqq-not-a-word")
     check("mini: 查不到返回 ok=False", m5.get("ok") is False, m5)
 
-    # kk 报的 nosed → nos：改成"多候选按可信度依次验证"后要对
+    # 还原的完整用例集。判据是「候选的词形变化里含例句里那个词」（word_forms 反向验证），
+    # 命中不了才退回按可信度顺序试。这些都是实测出来的坑，别删。
     pairs = [
-        ("nosed", "nose"), ("passed", "pass"), ("making", "make"), ("lurking", "lurk"),
-        ("children", "child"), ("abandoned", "abandon"), ("studied", "study"),
-        ("trying", "try"), ("used", "use"), ("closed", "close"), ("stopped", "stop"),
-        ("record", "record"),   # 原形不能被误拆成 recor（那是"生理记录仪"型号名）
-        ("desert", "desert"), ("address", "address"),
+        # 单复数
+        ("nosed", "nose"), ("passed", "pass"), ("children", "child"), ("men", "man"),
+        ("lives", "life"), ("knives", "knife"), ("studies", "study"),
+        ("caravans", "caravan"), ("watches", "watch"), ("cities", "city"),
+        ("boxes", "box"), ("leaves", "leaf"), ("wolves", "wolf"),
+        # 时态语态
+        ("abandoned", "abandon"), ("making", "make"), ("lurking", "lurk"),
+        ("trying", "try"), ("stopped", "stop"), ("running", "run"), ("used", "use"),
+        ("closed", "close"), ("went", "go"), ("was", "be"), ("began", "begin"),
+        ("taken", "take"), ("written", "write"), ("sold", "sell"), ("brought", "bring"),
+        ("carried", "carry"), ("hurried", "hurry"), ("planned", "plan"),
+        ("occurred", "occur"), ("coming", "come"), ("writing", "write"),
+        ("having", "have"), ("beginning", "begin"), ("hoping", "hope"),
+        ("hopping", "hop"),
+        # -ie 结尾的动词加 ing 会写成 y（lying → lie）
+        ("lying", "lie"), ("dying", "die"), ("tying", "tie"),
+        # 比较级
+        ("biggest", "big"), ("happier", "happy"), ("easier", "easy"),
+        # 本身就是原形，不能被误拆（record → recor 是"生理记录仪"型号名）
+        ("record", "record"), ("abandon", "abandon"), ("desert", "desert"),
+        ("address", "address"), ("colourless", "colourless"), ("chamber", "chamber"),
+        ("lurk", "lurk"), ("the", "the"), ("gas", "gas"), ("with", "with"),
     ]
     wrong = []
     for w, want in pairs:
@@ -297,6 +315,15 @@ def main() -> int:
     check("候选按可信度排序（nosed 先 nose）", _lc("nosed")[0] == "nose", _lc("nosed"))
     check("候选按可信度排序（passed 先 pass）", _lc("passed")[0] == "pass", _lc("passed"))
     check("候选不补出 trye", "trye" not in _lc("trying"), _lc("trying"))
+    check("候选含 -ie 变化（lying → lie）", "lie" in _lc("lying"), _lc("lying"))
+
+    # 反向验证要真的用上（靠它才能从 nose / nos 里挑对）
+    from core.dictionary import word_forms
+    nf = word_forms("nose")
+    check("拿得到 nose 的词形变化", "nosed" in nf, nf)
+    check("nos 没有词形变化（所以会被排除）", word_forms("nos") == [], word_forms("nos"))
+    check("nosed 命中的是 nose", mini("nosed").get("verified_by") == "word-forms",
+          mini("nosed"))
 
     print(f"\n结果：{OK} 通过 / {FAIL} 失败")
     return 1 if FAIL else 0
