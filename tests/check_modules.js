@@ -416,6 +416,62 @@ for (const id of clickable) {
   check('有词时显示词量', /8/.test(textHas), textHas.slice(0, 100));
 }
 
+// ==================== 用顶栏切走时，返回键要自己消失（用户反馈的 bug）====================
+{
+  const st = () => vm.runInContext(`({ n: S.lookStack.length,
+      hidden: $('#lookBack').hidden, view: S.view })`, ctx);
+  const reset = () => vm.runInContext(`S.lookStack = []; renderLookBack();`, ctx);
+
+  // 场景：背诵页 → 点例句里的词跳到查词页
+  reset();
+  vm.runInContext(`
+    showView('study');
+    openLook('abandon', { type: 'view', view: 'study' });
+  `, ctx);
+  let a = st();
+  check('背诵 → 词A：栈有 1 层', a.n === 1, a.n);
+  check('背诵 → 词A：返回键显示', a.hidden === false, a.hidden);
+
+  // 关键：不点返回键，直接用顶栏「背诵」切走
+  vm.runInContext(`showView('study');`, ctx);
+  let b = st();
+  check('顶栏切走后：返回栈已清空', b.n === 0, b.n);
+  check('顶栏切走后：返回键自己消失（不用点一下才消失）', b.hidden === true, b.hidden);
+
+  // 再切回查词页，返回键不该又冒出来
+  vm.runInContext(`showView('look');`, ctx);
+  let c = st();
+  check('再切回查词页：返回键仍是隐藏的', c.hidden === true, c.hidden);
+
+  // 回归：嵌套三层必须不受影响
+  reset();
+  vm.runInContext(`
+    showView('lib');
+    openLook('alpha',  { type: 'view', view: 'lib' });
+    openLook('beta',   { type: 'word', word: 'alpha' });
+    openLook('gamma',  { type: 'word', word: 'beta' });
+  `, ctx);
+  let d = st();
+  check('嵌套三层：栈有 3 层', d.n === 3, d.n);
+  check('嵌套三层：返回键显示', d.hidden === false, d.hidden);
+
+  vm.runInContext(`$('#lookBack').onclick();`, ctx);
+  let e = st();
+  check('嵌套退回一层：栈剩 2 层', e.n === 2, e.n);
+  check('嵌套退回一层：返回键还在', e.hidden === false, e.hidden);
+
+  vm.runInContext(`$('#lookBack').onclick();`, ctx);
+  let f = st();
+  check('再退一层：栈剩 1 层', f.n === 1, f.n);
+  check('再退一层：返回键还在', f.hidden === false, f.hidden);
+
+  vm.runInContext(`$('#lookBack').onclick();`, ctx);
+  let g = st();
+  check('退回词库：栈空了', g.n === 0, g.n);
+  check('退回词库：返回键消失', g.hidden === true, g.hidden);
+  reset();
+}
+
 console.log(`\n结果：${ok} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);
 })();

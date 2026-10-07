@@ -143,9 +143,15 @@ $('#goTop').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 /* ==================== 视图 / 阶段 ==================== */
 
 function showView(v) {
-  // 注意：切到查词页时**不清空**返回目标 —— 用顶栏标签切过去，返回键该消失；
-  // 但由 openLook() 带过来的返回目标是它自己设的，这里别抢。
-  if (v !== 'look') S.lookStack = [];
+  // 用顶栏标签切走 = 主动放弃这趟跳转，返回栈作废。
+  // 切到查词页时**不清空** —— 由 openLook() 带过来的返回目标是它自己设的，这里别抢。
+  //
+  // ⚠️ 清栈之后必须**同步刷新返回键**。只清数据不刷 UI 的话，返回键会留在页面上：
+  // 栈已经空了、按钮却还显示着，点了才消失（用户反馈的就是这个）。
+  if (v !== 'look') {
+    S.lookStack = [];
+    if (typeof renderLookBack === 'function') renderLookBack();
+  }
   S.view = v;
   try { if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v); } catch (e) { /* 无所谓 */ }
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === v));
