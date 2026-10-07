@@ -15,6 +15,7 @@ __pycache__/
 build/
 dist/
 *.exe
+!zhuxuan-v1.1.0.exe
 
 # 日志与临时文件
 *.log
