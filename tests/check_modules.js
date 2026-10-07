@@ -374,6 +374,48 @@ for (const id of clickable) {
         threw ? String(threw) : shown);
 }
 
+// ==================== 空词库时的首屏引导（朋友第一次打开就是这个状态）====================
+{
+  // S 是 const 声明的，vm 不会挂到 sandbox 上（只有 function 会），所以要在同一个
+  // context 里用 runInContext 执行才能访问 S。
+  const renderWith = (total, noCn) => vm.runInContext(`
+    S.stats = { total: ${total}, no_cn: ${noCn}, mastered: 0, learning: 0, fresh: 0 };
+    renderReadyHint();
+    (() => {
+      const b = $('#firstImportBtn');
+      return {
+        html: $('#readyHint').innerHTML || '',
+        btnHidden: b ? b.hidden : null,
+        hasHandler: b ? typeof b.onclick === 'function' : false,
+      };
+    })()
+  `, ctx);
+
+  const empty = renderWith(0, 0);
+  const textEmpty = String(empty.html).replace(/<[^>]*>/g, '');
+  check('空词库时说明可以导入内置词表', /内置词表/.test(textEmpty), textEmpty.slice(0, 140));
+  check('空词库时不再只说"去词库页加词"', !/词库为空，先去/.test(textEmpty), textEmpty.slice(0, 80));
+  check('空词库时「导入词表」按钮显示出来', empty.btnHidden === false, empty.btnHidden);
+  check('「导入词表」按钮绑了点击回调', empty.hasHandler === true, empty.hasHandler);
+
+  // 按钮得真能点：一点就跳到词库页
+  const jump = vm.runInContext(`
+    (() => {
+      $('#view-lib').hidden = true; $('#view-study').hidden = false;
+      const b = $('#firstImportBtn');
+      if (typeof b.onclick !== 'function') return 'no-handler';
+      b.onclick();
+      return $('#view-lib').hidden === false ? 'jumped' : 'stuck';
+    })()
+  `, ctx);
+  check('点「导入词表」会跳到词库页', jump === 'jumped', jump);
+
+  const has = renderWith(8, 0);
+  const textHas = String(has.html).replace(/<[^>]*>/g, '');
+  check('有词时「导入词表」按钮收起来', has.btnHidden === true, has.btnHidden);
+  check('有词时显示词量', /8/.test(textHas), textHas.slice(0, 100));
+}
+
 console.log(`\n结果：${ok} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);
 })();

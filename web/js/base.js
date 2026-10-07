@@ -192,10 +192,17 @@ async function loadStats() {
 function renderReadyHint() {
   const s = S.stats;
   if (!s) return;
+  const first = $('#firstImportBtn');
   if (!s.total) {
-    $('#readyHint').innerHTML = '词库为空，先去「词库」页加词';
+    // 第一次打开就是这个状态（朋友拿到、或者自己重装）。光说"去词库页"太含糊，
+    // 新用户根本不知道该点什么，所以直接给一个按钮，一步跳到导入弹层。
+    $('#readyHint').innerHTML =
+      '还没有单词　·　去「词库」页可以<b>一键导入内置词表</b>（四级 / 六级 / 考研 / 托福 / GRE），' +
+      '也可以自己加词、或用 Excel 批量导入。';
+    if (first) first.hidden = false;
     return;
   }
+  if (first) first.hidden = true;
   if (s.total === s.no_cn) {
     $('#readyHint').innerHTML = '词库里 <b>' + s.total + '</b> 个单词均缺少中文释义，无法出题';
     return;
@@ -210,6 +217,15 @@ function renderReadyHint() {
 /* ==================== 公共弹层的绑定 ==================== */
 
 function bindCore() {
+
+  // 空词库时首页那个「导入词表 →」：一步跳到词库页并打开导入弹层
+  const firstBtn = $('#firstImportBtn');
+  if (firstBtn) {
+    firstBtn.onclick = () => {
+      showView('lib');
+      setTimeout(() => { const b = $('#importBtn'); if (b) b.click(); }, 250);
+    };
+  }
 
   // 确认弹窗
   $('#confirmOk').onclick = () => closeConfirm(true);
