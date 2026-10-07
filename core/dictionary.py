@@ -29,7 +29,7 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 
 TIMEOUT = 8.0
 
-# 释义编排规则（kk 定的）
+# 释义编排规则（既定的）
 FULL_POS = 2             # 前 2 个词性 …
 FULL_MEANINGS = 2        # …各保留 2 个义项
 LATER_MEANINGS = 1       # 第 3 个词性起，每个只保留 1 个义项
@@ -123,7 +123,7 @@ def _extract(data: dict, word: str = "",
              pos_limit: int | None = None, meaning_count: int | None = None) -> dict | None:
     """把有道返回的 JSON 整理成 {cn, pos, ph}。词典没这个词时返回 None。
 
-    编排规则（kk 定的）：
+    编排规则（既定的）：
       · 人名 / 地名条目丢掉
       · 词性**全都保留**
       · 前 2 个词性各留 2 个义项，第 3 个词性起每个只留 1 个义项

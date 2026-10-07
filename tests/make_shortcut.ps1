@@ -1,7 +1,8 @@
 ﻿$ErrorActionPreference = "Stop"
-$target  = "D:\kk\WordApp\竹喧.exe"
-$icoSrc  = "D:\kk\WordApp\app.ico"
-$workdir = "D:\kk\WordApp"
+$root = Split-Path $PSScriptRoot -Parent
+$target  = Join-Path $root "竹喧.exe"
+$icoSrc  = Join-Path $root "app.ico"
+$workdir = $root
 
 if (-not (Test-Path $target)) { Write-Output "找不到 $target"; exit 1 }
 if (-not (Test-Path $icoSrc)) { $icoSrc = $target }

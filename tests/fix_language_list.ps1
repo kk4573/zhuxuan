@@ -1,5 +1,5 @@
 ﻿$ErrorActionPreference = "Stop"
-$backupDir = "D:\kk\WordApp\backups_系统设置"
+$backupDir = (Join-Path $root "backups_系统设置")
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
 Write-Output "=== 0. 备份当前语言相关注册表 ==="

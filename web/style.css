@@ -3,7 +3,7 @@
    ------------------------------------------------------------------
    HTML 的 hidden 属性靠 display:none 起作用，**优先级很低**：
    只要某个类里写了 display:inline-flex / flex 之类，就会把它盖掉，
-   元素该藏起来却仍然显示（kk 报的"自己查词也有返回键，点了没反应"就是这个：
+   元素该藏起来却仍然显示（用户反馈的"自己查词也有返回键，点了没反应"就是这个：
    .backbtn{display:inline-flex} 把 hidden 压住了）。
    这里统一兜底，省得以后每加一个可切换显示的组件都要记得补 [hidden]。
    ================================================================== */
@@ -331,7 +331,7 @@ select.setnum{width:110px;text-align:left;font-family:inherit;cursor:pointer;pad
 /* 开关：<label class="switch"><input type=checkbox><i></i><span>文字</span></label>
    ⚠️ 这里原来又写了一条 .switch{position:relative;width:42px…}，把上面那条的
    display:flex 覆盖掉了。结果答题页那个 label 不再是弹性布局，<i> 又绝对定位
-   撑满整个 label，直接把「答对后自动跳过」这几个字盖住了（kk 报的开关问题）。 */
+   撑满整个 label，直接把「答对后自动跳过」这几个字盖住了（用户反馈的开关问题）。 */
 .switch > i{
   position:relative;flex:none;width:42px;height:23px;border-radius:12px;
   background:#39414f;transition:background .16s ease;
@@ -423,7 +423,7 @@ select.setnum{width:110px;text-align:left;font-family:inherit;cursor:pointer;pad
   margin:0;font-size:25px;font-weight:650;letter-spacing:.3px;
   display:flex;align-items:center;gap:10px;
   position:relative;         /* ← 关键：不写这行，里面 position:absolute 的喇叭
-                                会跳过它去找视口，直接飞出卡片（kk 报的那个） */
+                                会跳过它去找视口，直接飞出卡片（用户反馈的那个） */
 }
 .lookph{margin-top:7px;display:flex;align-items:baseline;gap:14px;font-family:Consolas,monospace}
 .lookph span{color:var(--fg);font-size:13.5px}
@@ -634,7 +634,7 @@ button.mini:disabled{opacity:.55;cursor:default}
    弹层尺寸与滚动
    ------------------------------------------------------------------
    原来 .modalbox 既不限高也不给滚动条，设置项一多就直接顶出屏幕，
-   上下两头都看不见（kk 报的）。这里统一处理：
+   上下两头都看不见（用户反馈的）。这里统一处理：
      · 最高不超过窗口高度，撑满了就在**盒子内部**滚
      · 底部的按钮/提示吸底，滚到哪儿都能够到「保存 / 取消」
    ================================================================== */

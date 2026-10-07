@@ -73,7 +73,7 @@ function fillBooks(sel, opts) {
 async function refreshBookSelects() {
   await loadBooks(true);
   fillBooks($('#studyBook'));
-  // 词库页：进来时默认落在**默认词库**上（kk 的要求），"全部单词"仍然可以手动选
+  // 词库页：进来时默认落在**默认词库**上（需求），"全部单词"仍然可以手动选
   const libCur = $('#libBook') && $('#libBook').value;
   fillBooks($('#libBook'), { allOption: '全部单词', value: libCur || defaultBookId() });
   fillBooks($('#importBook'));
@@ -280,7 +280,7 @@ function bindBooks() {
   $('#libBook').onchange = () => { currentPage = 1; loadWords(1, true); };
   $('#studyBook').onchange = () => { renderReadyHint(); };
 
-  // 词库管理（改名 / 设为默认 / 删除）——以前没有入口，kk 找不到删除键
+  // 词库管理（改名 / 设为默认 / 删除）——以前没有入口，用户找不到删除键
   $('#bookManageBtn').onclick = openBookManage;
 
   // 内置词表：下拉选一个，再点右边的导入

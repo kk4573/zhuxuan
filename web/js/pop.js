@@ -4,7 +4,7 @@
  * 里面是这个单词最主要的一条释义，外加：
  *   · 🔊 发音
  *   · 更多 → 跳查词页看完整资料
- *   · ＋ 加入词库 → 直接进**默认词库**（不弹选择，kk 要求的）
+ *   · ＋ 加入词库 → 直接进**默认词库**（不弹选择，按需求）
  *
  * 后端会先把变形还原成原型（odours → odour、abandoned → abandon），
  * 所以点变形词也能拿到对的释义。
@@ -155,7 +155,7 @@ async function openWordPop(span) {
       add.outerHTML = '<span class="wp-inlib">已加入词库</span>';
       toast('已加入词库', 'ok');
       // 三处计数都要刷：顶栏、词库下拉里的「名字（N）」、词库页的「共 N 个词」。
-      // 只调 loadWords 是不够的 —— 它只管单词列表，下拉和顶栏都不会动（kk 报的计数不变）。
+      // 只调 loadWords 是不够的 —— 它只管单词列表，下拉和顶栏都不会动（用户反馈的计数不变）。
       if (typeof loadWords === 'function') loadWords();
       if (typeof refreshBookSelects === 'function') refreshBookSelects();
       if (typeof loadStats === 'function') loadStats();

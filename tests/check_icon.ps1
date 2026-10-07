@@ -1,5 +1,6 @@
 ﻿$ErrorActionPreference = "Continue"
-$exe = "D:\kk\WordApp\竹喧.exe"
+$root = Split-Path $PSScriptRoot -Parent
+$exe = Join-Path $root "竹喧.exe"
 $lnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "竹喧.lnk"
 
 Write-Output "=== 1. exe 内嵌的图标 ==="
@@ -11,7 +12,7 @@ try {
         Write-Output ("  OK 提取到 {0}x{1} 图标" -f $bmp.Width, $bmp.Height)
         $c = $bmp.GetPixel([int]($bmp.Width/2), [int]($bmp.Height/2))
         Write-Output ("  中心像素 RGB = {0},{1},{2}" -f $c.R, $c.G, $c.B)
-        $bmp.Save("D:\kk\WordApp\_icon_check.png")
+        $bmp.Save((Join-Path $root "_icon_check.png"))
         Write-Output "  已存出 _icon_check.png（供比对）"
     } else {
         Write-Output "  FAIL 提取失败：exe 里可能没图标"

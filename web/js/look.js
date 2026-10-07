@@ -241,7 +241,7 @@ function setLookInput(w) {
  *   { type: 'view', view: 'lib' }       ← 原来在词库页
  *
  * 用栈而不是单个值 —— 否则「词库 → 词A → 词B」这种嵌套，从 B 退回 A 之后就没法再退回词库了
- * （kk 报的就是这个）。传 null 表示自己在查词框敲的查询，不算跳转，栈清空、不显示返回键。
+ * （用户反馈的就是这个）。传 null 表示自己在查词框敲的查询，不算跳转，栈清空、不显示返回键。
  */
 async function openLook(word, from) {
   if (S.view !== 'look') showView('look');

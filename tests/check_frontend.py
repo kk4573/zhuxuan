@@ -113,7 +113,7 @@ def main() -> int:
 
 
     # ---- CSS：同一个选择器被定义多次，后一条会悄悄覆盖前一条的冲突属性 ----
-    # （kk 报的「开关盖住文字」就是这么来的：.switch 写了两次，第二条把 display:flex 覆盖了）
+    # （用户反馈的「开关盖住文字」就是这么来的：.switch 写了两次，第二条把 display:flex 覆盖了）
     css = (WEB / "style.css").read_text(encoding="utf-8")
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)          # 去注释，免得注释里的例子被算进去
     rules: dict[str, list[list[str]]] = {}
@@ -137,7 +137,7 @@ def main() -> int:
 
 
     # ---- 弹层必须限高且能滚 ----
-    # 内容一多就顶出屏幕、上下两头都看不见（kk 报过），所以这里盯着两条：
+    # 内容一多就顶出屏幕、上下两头都看不见（用户反馈过），所以这里盯着两条：
     # ① .modalbox 有 max-height ② 有 overflow-y:auto
     css_all = (WEB / "style.css").read_text(encoding="utf-8")
     css_all = re.sub(r"/\*.*?\*/", "", css_all, flags=re.S)
@@ -155,7 +155,7 @@ def main() -> int:
 
     # ---- 绝对定位的元素，父容器必须有定位 ----
     # 查词卡片的喇叭按钮用的是 position:absolute，挂在 <h2> 里；
-    # 而 h2 没写 position:relative 时，它会跳过 h2 去找视口，直接飞出卡片（kk 报过）。
+    # 而 h2 没写 position:relative 时，它会跳过 h2 去找视口，直接飞出卡片（用户反馈过）。
     css3 = re.sub(r"/\*.*?\*/", "", (WEB / "style.css").read_text(encoding="utf-8"), flags=re.S)
     h2_rule = re.search(r"\.looktitle\s+h2\s*\{([^}]*)\}", css3)
     check(".looktitle h2 有定位（里面的喇叭才不会飞出去）",
@@ -171,7 +171,7 @@ def main() -> int:
           field_rule is not None and "position:relative" in field_rule.group(1).replace(" ", ""))
 
     # ---- 加词之后，三处计数都得刷 ----
-    # kk 报过"从例句加入词库后计数不变"：pop.js 只调了 loadWords（刷新单词列表），
+    # 用户反馈过"从例句加入词库后计数不变"：pop.js 只调了 loadWords（刷新单词列表），
     # 词库下拉和顶栏都不会动。这里盯着三个入口都要有 refreshBookSelects。
     for fn in ("pop.js", "look.js", "study.js", "lib.js"):
         src = (WEB / "js" / fn).read_text(encoding="utf-8")
@@ -198,7 +198,7 @@ def main() -> int:
 
     # ---- hidden 属性必须压得住 CSS 的 display ----
     # hidden 靠 display:none 起作用，优先级很低；类里写了 display:inline-flex 就会盖掉它。
-    # kk 报过"自己查词也显示返回键、点了没反应"，根因就是这个。加一条兜底规则。
+    # 用户反馈过"自己查词也显示返回键、点了没反应"，根因就是这个。加一条兜底规则。
     css4 = re.sub(r"/\*.*?\*/", "", (WEB / "style.css").read_text(encoding="utf-8"), flags=re.S)
     # 注意正则要卡开头：CSS 里本来就有一条 .phase[hidden]{display:none}，
     # 不卡开头的话会匹配到它，断言就永远成立了（假绿过）。

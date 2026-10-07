@@ -286,7 +286,7 @@ try {
 }
 
 
-// ---------- 查词页的返回键（完整复现 kk 报的三层场景） ----------
+// ---------- 查词页的返回键（完整复现 三层嵌套场景） ----------
 console.log('\n— 返回键：词库 → 词A → 词B → 返回 → 返回 —');
 try {
   const back = sandbox.document.querySelector('#lookBack');
@@ -312,7 +312,7 @@ try {
   vm.runInContext("openLook('beta', { type: 'word', word: 'alpha' });", ctx);
   check('词A → 词B：栈里有 2 层', stack() === 2, stack());
 
-  // ④ 第一次返回 → 回到词A，**返回键还得在**（kk 报的就是这里没了）
+  // ④ 第一次返回 → 回到词A，**返回键还得在**（用户反馈的就是这里没了）
   click();
   check('返回一次：回到词A', vm.runInContext('lookWord', ctx) === 'alpha',
         vm.runInContext('lookWord', ctx));

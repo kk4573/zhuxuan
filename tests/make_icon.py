@@ -4,8 +4,8 @@
     .venv/Scripts/python.exe tests/make_icon.py
 
 输出：
-    D:/kk/WordApp/app.ico        —— 给 PyInstaller 用（多尺寸，系统按场合自己挑）
-    D:/kk/WordApp/图标预览.png    —— 256×256 预览，方便肉眼确认
+    app.ico（项目根目录）        —— 给 PyInstaller 用（多尺寸，系统按场合自己挑）
+    图标预览.png（项目根目录）    —— 256×256 预览，方便肉眼确认
 """
 from __future__ import annotations
 
