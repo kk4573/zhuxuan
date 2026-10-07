@@ -170,14 +170,29 @@ def main() -> int:
     check("答题页 .field 仍然有定位（那边的喇叭也靠它）",
           field_rule is not None and "position:relative" in field_rule.group(1).replace(" ", ""))
 
-    # ---- 加词之后，三处计数都得刷 ----
-    # 用户反馈过"从例句加入词库后计数不变"：pop.js 只调了 loadWords（刷新单词列表），
-    # 词库下拉和顶栏都不会动。这里盯着三个入口都要有 refreshBookSelects。
+    # ---- 加词 / 导入之后，界面上所有跟词量有关的地方都得刷 ----
+    # 踩过两次：①"从例句加入词库后计数不变"（pop.js 只调了 loadWords）；
+    #           ②"导入六级词表后顶栏和词库页还是空的"（books.js 漏了 loadStats 和 loadWords）。
+    # 根因是每个入口各写各的刷新，总会漏。现在统一走 refreshAfterWordChange()。
+    base_src = (WEB / "js" / "base.js").read_text(encoding="utf-8")
+    check("有统一刷新入口 refreshAfterWordChange", "function refreshAfterWordChange" in base_src)
+
     for fn in ("pop.js", "look.js", "study.js", "lib.js"):
         src = (WEB / "js" / fn).read_text(encoding="utf-8")
         if "api('POST', '/api/words'" in src or "/api/words', {" in src:
-            check(f"{fn} 加词后会刷词库下拉",
-                  "refreshBookSelects" in src, "它里面有加词的调用，却没有刷下拉")
+            # 认两种：走统一入口，或者三样都刷到（少一样就会"要手动刷新才看得到"）
+            unified = "refreshAfterWordChange" in src
+            manual = all(k in src for k in ("loadStats", "loadWords", "refreshBookSelects"))
+            check(f"{fn} 加词后会刷新界面", unified or manual,
+                  "走统一入口" if unified else ("三样都刷" if manual else "漏了刷新"))
+
+    # 导入词表这条路径也必须刷（用户反馈的就是这里）
+    books_src = (WEB / "js" / "books.js").read_text(encoding="utf-8")
+    imp = books_src[books_src.find("/api/vocab/import"):]
+    check("导入词表后会刷新界面",
+          "refreshAfterWordChange" in imp[:800] or
+          all(k in imp[:800] for k in ("loadStats", "loadWords")),
+          imp[:200])
 
     # ---- 查词页的返回按钮 ----
     # 返回目标是"上一个看过的东西"，不一定是个页面：

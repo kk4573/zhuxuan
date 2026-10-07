@@ -167,6 +167,21 @@ function showView(v) {
   }
 }
 
+/** 词量变了（加词 / 导入 / 删词）之后，把界面上所有跟词量有关的地方统一刷一遍。
+ *
+ * 为什么做成一个函数：以前是每个入口各写各的，结果漏了好几处 —— 导入六级词表后
+ * 顶栏计数不变、词库页切过去还是空的，要手动刷新才出来（用户反馈的）。
+ * 以后新增入口直接调这个，别再手写三行。
+ */
+async function refreshAfterWordChange() {
+  // 返回 Promise：测试（和任何需要"刷完再做下一步"的地方）可以 await 它。
+  // 不 await 也行，界面稍后自己更新 —— 调用方大多是 fire-and-forget。
+  await loadStats();                                                  // 顶栏「词库 N」
+  if (typeof refreshBookSelects === 'function') await refreshBookSelects(); // 各处的词库下拉
+  // 词库页的单词列表：页面不可见时刷它是白费，等切过去时 showView 会自己加载
+  if ($('#view-lib') && !$('#view-lib').hidden) await loadWords(1);
+}
+
 function showPhase(p) {
   S.phase = p;
   $('#study-ready').hidden = p !== 'ready';

@@ -246,6 +246,7 @@ async function importVocab(key, btn) {
     await refreshBookSelects();
     await renderVocabList();
     if (targetSel && r.book_id) targetSel.value = r.book_id;
+    refreshAfterWordChange();      // 顶栏计数 + 词库页列表，缺一个都要手动刷新
   } catch (e) {
     msg('#importMsg', '导入失败：' + e.message, 'bad');
   } finally {

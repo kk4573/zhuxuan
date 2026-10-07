@@ -231,8 +231,7 @@ async function checkOtherWord(typed, answer) {
       await api('POST', '/api/words', { en: r.en, cn: r.cn, pos: r.pos, ph: r.ph });
       btn.outerHTML = '<span class="dim">✓ 已加入词库</span>';
       toast('已加入词库：' + r.en, 'ok');
-      loadStats();
-      if (typeof refreshBookSelects === 'function') refreshBookSelects();
+      refreshAfterWordChange();
     } catch (e) {
       btn.disabled = false;
       btn.textContent = '＋ 加入词库';

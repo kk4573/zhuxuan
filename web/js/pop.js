@@ -156,9 +156,7 @@ async function openWordPop(span) {
       toast('已加入词库', 'ok');
       // 三处计数都要刷：顶栏、词库下拉里的「名字（N）」、词库页的「共 N 个词」。
       // 只调 loadWords 是不够的 —— 它只管单词列表，下拉和顶栏都不会动（用户反馈的计数不变）。
-      if (typeof loadWords === 'function') loadWords();
-      if (typeof refreshBookSelects === 'function') refreshBookSelects();
-      if (typeof loadStats === 'function') loadStats();
+      refreshAfterWordChange();
     } catch (e) {
       add.disabled = false;
       add.textContent = '＋ 加入词库';

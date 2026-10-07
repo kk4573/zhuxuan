@@ -472,6 +472,60 @@ for (const id of clickable) {
   reset();
 }
 
+// ==================== 词量变化后必须统一刷新（用户反馈：导入完不刷新）====================
+{
+  check('有统一刷新入口 refreshAfterWordChange', typeof sandbox.refreshAfterWordChange === 'function',
+        typeof sandbox.refreshAfterWordChange);
+
+  // 四个加词入口 + 导入入口，都必须调用它（以前各写各的，漏了好几处）
+  const fs2 = require('fs');
+  const mustCall = [
+    ['books.js', 'refreshAfterWordChange'],   // 导入词表
+    ['look.js',  'refreshAfterWordChange'],   // 查词页加词
+    ['study.js', 'refreshAfterWordChange'],   // 答题页加「另一个词」
+    ['pop.js',   'refreshAfterWordChange'],   // 例句点词加词
+  ];
+  for (const [f, fn] of mustCall) {
+    const src = fs2.readFileSync(path.join(ROOT, 'web', 'js', f), 'utf8');
+    check(`${f} 加了词会统一刷新`, src.includes(fn), fn);
+  }
+
+  // 关键：真调一次，看顶栏计数和词库列表是否真的被刷
+  // 假 fetch 返回一个"词库有 1234 个词"的统计，刷新后 hud 里就该出现 1234
+  const hudRes = await vm.runInContext(`
+    (async () => {
+      showView('lib');
+      window.__calls = [];
+      const wrap = (name) => {
+        const f = window[name] || eval(name);
+        window[name] = async (...a) => { window.__calls.push(name); return f.apply(null, a); };
+      };
+      window.__seen = [];
+      const realFetch2 = fetch;
+      fetch = async (url) => {
+        const u = String(url);
+        window.__seen.push(u.slice(0, 40));
+        let body = {};
+        if (u.includes('/api/stats')) body = { total: 1234, no_cn: 0, no_cn_pending: 0,
+          mastered: 5, learning: 100, fresh: 1129, today_asked: 0, today_right: 0,
+          today_wrong: 0, streak_days: 1 };
+        else if (u.includes('/api/books')) body = [];
+        else if (u.includes('/api/words')) body = { words: [], total: 0, page: 1, pages: 1 };
+        return { ok: true, status: 200, json: async () => body };
+      };
+      const direct = await api('GET', '/api/stats');
+      await refreshAfterWordChange();      // 返回 Promise，await 到真刷完
+      return { hud: $('#hud').innerHTML, stats: S.stats, direct,
+               seen: window.__seen, apiSrc: String(api).slice(0, 150) };
+    })()
+  `, ctx);
+  const hud = hudRes.hud;
+  check('刷新后顶栏计数真的更新了', /1234/.test(String(hud)), String(hud).slice(0, 120));
+
+  // 还原 fetch，免得影响后面的用例
+  vm.runInContext(`if (window.__realFetch) fetch = window.__realFetch;`, ctx);
+}
+
 console.log(`\n结果：${ok} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);
 })();
