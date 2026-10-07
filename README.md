@@ -4,40 +4,37 @@
 
 「竹喧」取自「竹喧归浣女」——竹林里有人说话，正是背单词时念念有词的画面。
 
-**下载**：**[Releases → v1.1.0](https://github.com/kk4573/zhuxuan/releases/tag/v1.1.0)**
-（22.4 MB，双击即用，无需安装 Python）
+**下载**：[`zhuxuan-v1.1.1.exe`](zhuxuan-v1.1.1.exe)（34.3 MB，双击即用，无需安装 Python、无需浏览器）
 
 ![背诵页](docs/screenshot-study.png)
 
 ## 下载使用
 
-两种方式任选，**内容完全相同**（SHA256 均为 `c14b7990…de65`）：
+**下载这个文件：** [`zhuxuan-v1.1.1.exe`](zhuxuan-v1.1.1.exe)（34.3 MB）
 
-### 方式一：Release（推荐）
+### 国内网络加速（重要）
 
-到 **[Releases → v1.1.0](https://github.com/kk4573/zhuxuan/releases/tag/v1.1.0)** 下载 `zhuxuan-v1.1.0.exe`。
-
-### 方式二：仓库内文件
-
-直接下载 **[`zhuxuan-v1.1.0.exe`](zhuxuan-v1.1.0.exe)**。
-
-### 国内网络加速
-
-`github.com` 直连很慢甚至完全不通（实测：下载请求直接超时，无法建立连接）。
-把下面任一行的**全部内容**复制到浏览器地址栏回车即可：
+`github.com` 直连在国内基本不通（实测：请求直接超时，无法建立连接）。
+把下面任一行的**全部内容**复制到浏览器地址栏回车，即可下载：
 
 ```
-https://gh-proxy.com/https://github.com/kk4573/zhuxuan/releases/download/v1.1.0/zhuxuan-v1.1.0.exe
+https://ghfast.top/https://github.com/kk4573/zhuxuan/raw/main/zhuxuan-v1.1.1.exe
 ```
 ```
-https://ghfast.top/https://github.com/kk4573/zhuxuan/releases/download/v1.1.0/zhuxuan-v1.1.0.exe
-```
-```
-https://gh-proxy.com/https://github.com/kk4573/zhuxuan/raw/main/zhuxuan-v1.1.0.exe
+https://gh-proxy.com/https://github.com/kk4573/zhuxuan/raw/main/zhuxuan-v1.1.1.exe
 ```
 
-实测速度：第一条最快（22.4 MB 约 2 秒），第二条约 5 秒，直连则不通。
-若下载后文件名乱码或缺少 `.exe` 后缀，手动改回 `zhuxuan-v1.1.0.exe` 再双击。
+实测：第一条约 5 秒，第二条约 40 秒，直连则完全不通。
+若下载后文件名乱码或缺少 `.exe` 后缀，手动改回 `zhuxuan-v1.1.1.exe` 再双击。
+
+### 放在哪、怎么启动
+
+放到**桌面**或任意有写入权限的文件夹，双击即可。
+
+- **不要**放进 `C:\Program Files` 这类需要管理员权限的目录。（真放了也不会坏：
+  程序检测到写不进去，会自动把数据改存到 `%LOCALAPPDATA%\竹喧`。）
+- 首次双击若出现「Windows 已保护你的电脑」，点 **更多信息 → 仍要运行**。
+  个人项目没有购买代码签名证书，这是误报。
 
 ### 运行环境要求
 
@@ -49,33 +46,29 @@ https://gh-proxy.com/https://github.com/kk4573/zhuxuan/raw/main/zhuxuan-v1.1.0.e
 | **网络** | 可选。只有查词 / 补释义 / 导入内置词表时才联网 |
 
 界面用的是 Windows 自带的 **WebView2** 组件（Windows 10 1803+ 和 Windows 11 都是
-系统的一部分），**不用你另外装任何东西**，装好系统就有。
+系统的一部分），**不用另外装任何东西**，装好系统就有。
 
 > **极少数没有 WebView2 的情况**（精简版系统、Windows Server）：
-> 程序会自动退回用你电脑上的浏览器打开，界面功能完全一样。
-> 连浏览器都没有时会弹窗提示。
-
-### 放在哪、怎么启动
-
-放到**桌面**或任意有写入权限的文件夹，双击即可。
-
-- **不要**放进 `C:\Program Files` 这类需要管理员权限的目录。（真放了也不会坏：
-  程序检测到写不进去，会自动把数据改存到 `%LOCALAPPDATA%\竹喧`。）
-- 首次双击若出现「Windows 已保护你的电脑」，点 **更多信息 → 仍要运行**。
-  个人项目没有购买代码签名证书，这是误报。
+> 程序会自动退回用电脑上的浏览器打开，功能完全一样。连浏览器都没有时会弹窗提示。
 
 ### 校验文件完整性（可选）
 
-PowerShell 里运行，输出应以 `c14b7990` 开头：
+PowerShell 里运行，输出应以 `bab30fbf` 开头：
 
 ```powershell
-Get-FileHash .\zhuxuan-v1.1.0.exe -Algorithm SHA256
+Get-FileHash .\zhuxuan-v1.1.1.exe -Algorithm SHA256
 ```
+
+完整值：`bab30fbf16c3549f535a921eb1f36161cc74bf3c2ad28f706037bc7bc3e2a654`
 
 ### 第一次打开
 
 **词库是空的。** 点首页的「导入词表 →」按钮，选一份内置词表
 （四级 / 六级 / 考研 / 托福 / GRE）导入，就能开始背了。
+
+### 关掉窗口就是退出
+
+点窗口的 × 或顶栏的 ⏻ 都会完整退出程序（后台服务一起停，不留残余进程）。
 
 ## 它长什么样
 
