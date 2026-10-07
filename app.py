@@ -816,6 +816,12 @@ def _open_window(url: str) -> None:
         subprocess.Popen([
             edge, f"--app={url}",
             "--window-size=%d,%d" % _window_size(),
+            # 让 Chromium 按深色主题渲染自己的外壳（窗口标题栏、滚动条…）。
+            # 竹喧是深色界面，而系统是浅色主题时，那条白标题栏特别扎眼（kk 报的）。
+            # 试过用 DwmSetWindowAttribute 改标题栏颜色：窗口刚开时有效，Edge 初始化完
+            # 又会刷回浅色，稳不住。这个开关是让它**从一开始就按深色画**，实测标题栏变纯黑，
+            # 页面本身不受影响（不会被反色）。
+            "--force-dark-mode",
             "--no-first-run",
             "--no-default-browser-check",
             f"--disable-features={no_autofill}",

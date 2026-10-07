@@ -121,6 +121,55 @@ def to_english() -> dict:
             "reason": "" if ok else "切换没生效（可能被输入法自身设置拦下了）"}
 
 
+def app_window_handles() -> list[int]:
+    """找出竹喧应用窗口的句柄。
+
+    标题用 `in` 而不是 `==` —— Edge 有时会在后面缀上别的东西。
+    和 close_app_windows() 用同一套判断，别各写各的（这里踩过：用了不存在的
+    APP_TITLE 常量，NameError 被上层 except 吞掉，窗口一个都找不到还查不出原因）。
+    """
+    out: list[int] = []
+    user32 = ctypes.windll.user32
+    EnumProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+
+    def _cb(hwnd, _):
+        n = user32.GetWindowTextLengthW(hwnd)
+        if n and user32.IsWindowVisible(hwnd):
+            buf = ctypes.create_unicode_buffer(n + 1)
+            user32.GetWindowTextW(hwnd, buf, n + 1)
+            if any(t in buf.value for t in APP_TITLES):
+                out.append(hwnd)
+        return True
+
+    user32.EnumWindows(EnumProc(_cb), 0)
+    return out
+
+
+def darken_titlebar(hwnd: int) -> bool:
+    """把窗口标题栏刷成深色。
+
+    竹喧是深色界面，但窗口标题栏由系统画：你的系统是浅色主题，标题栏就是一条白杠，
+    和界面很不搭（kk 报的）。Edge 的 --app 窗口没法去掉标题栏（去掉就不能拖动和关闭了），
+    但可以让它变深。
+
+    ⚠️ 实测（本机 Windows 11 26200）：**必须用属性号 19**，只设 20 一点反应都没有
+    （虽然两个都返回 0"成功"）。两个都设上，兼容新旧版本。
+    """
+    try:
+        value = ctypes.c_int(1)
+        ok = False
+        for attr in (19, 20):                      # DWMWA_USE_IMMERSIVE_DARK_MODE 的两个编号
+            rc = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, attr, ctypes.byref(value), ctypes.sizeof(value))
+            ok = ok or rc == 0
+        # 让窗口重画一次，否则要等下次交互才看得到效果
+        user32 = ctypes.windll.user32
+        user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)   # SWP_NOMOVE|NOSIZE|NOZORDER|NOACTIVATE|FRAMECHANGED
+        return ok
+    except Exception:
+        return False                    # 老系统没有 dwmapi 也不该影响启动
+
+
 def close_app_windows() -> int:
     """关掉所有「竹喧」窗口。
 

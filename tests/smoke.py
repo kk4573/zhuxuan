@@ -142,6 +142,16 @@ def main() -> int:
         check("超范围的值被夹住", cfg3.get("pos_limit") == 6 and cfg3.get("meaning_count") == 3, cfg3)
         call("PUT", "/api/config", {"pos_limit": 0, "meaning_count": 2})
 
+        print("\n— 深色标题栏 —")
+        # 浅色系统下 Edge 会给窗口画一条白标题栏，和深色界面很不搭。
+        # 试过 DwmSetWindowAttribute：窗口刚开时有效，Edge 初始化完又刷回浅色，稳不住。
+        # 最终方案是让 Chromium 按深色主题渲染自己的外壳（--force-dark-mode）。
+        app_src = (ROOT / "app.py").read_text(encoding="utf-8")
+        check("开窗口时带上 --force-dark-mode", "--force-dark-mode" in app_src)
+        check("没留下那段无效的 DWM 轮询代码", "_tint_titlebar" not in app_src)
+        check("窗口标题栏相关的窗口枚举函数还在",
+              callable(getattr(__import__("core.ime", fromlist=["ime"]), "app_window_handles", None)))
+
         print("\n— 统计 —")
         _, s = call("GET", "/api/stats")
         check("空词库 total = 0", s.get("total") == 0, s)
