@@ -13,14 +13,24 @@
 下载仓库里的 **[`zhuxuan-v1.1.0.exe`](zhuxuan-v1.1.0.exe)**（22.4 MB），
 放到**桌面**（或任意有写入权限的文件夹），双击即可。
 
-> **国内网络**：`github.com` 的网页下载可能非常慢或中断。可以用加速镜像：
+> **国内网络**：GitHub 直连下载很慢而且经常中断（实测 70 秒只下到 24%）。
+> 用下面任一加速镜像，把**整行**复制到浏览器地址栏回车即可：
 >
+> ```
+> https://gh-proxy.com/https://github.com/kk4573/zhuxuan/raw/main/zhuxuan-v1.1.0.exe
+> ```
 > ```
 > https://ghfast.top/https://github.com/kk4573/zhuxuan/raw/main/zhuxuan-v1.1.0.exe
 > ```
 >
-> 把上面整行复制到浏览器地址栏回车即可（下载下来若文件名显示为乱码或没有后缀，
-> 手动改回 `zhuxuan-v1.1.0.exe` 再双击）。
+> 实测速度：第一条约 12 MB/s，第二条约 600 KB/s，直连则要三分钟以上还常常断。
+> 若下载下来文件名显示为乱码或没有 `.exe` 后缀，手动改回 `zhuxuan-v1.1.0.exe` 再双击。
+>
+> **校验文件是否完整**（可选，PowerShell 里运行，应输出 `c14b7990…de65` 开头的值）：
+>
+> ```powershell
+> Get-FileHash .\zhuxuan-v1.1.0.exe -Algorithm SHA256
+> ```
 
 - **不需要安装 Python**，也不用装任何额外软件（用系统自带的 Edge 渲染界面）。
 - 第一次双击若出现「Windows 已保护你的电脑」，点 **更多信息 → 仍要运行** 即可。
