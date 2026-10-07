@@ -142,6 +142,43 @@ def main() -> int:
         check("超范围的值被夹住", cfg3.get("pos_limit") == 6 and cfg3.get("meaning_count") == 3, cfg3)
         call("PUT", "/api/config", {"pos_limit": 0, "meaning_count": 2})
 
+        print("\n— 内嵌窗口（WebView2）—")
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location("zxapp2", str(ROOT / "app.py"))
+        _m = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_m)
+        for fn in ("_webview_available", "_open_window_embedded",
+                   "_close_embedded_window", "_open_window_browser"):
+            check(f"有 {fn}()", callable(getattr(_m, fn, None)), type(getattr(_m, fn, None)).__name__)
+
+        # 主次关系：内嵌优先，浏览器兜底
+        app_src3 = (ROOT / "app.py").read_text(encoding="utf-8")
+        i_ow = app_src3.find("def _open_window(url: str)")
+        seg_ow = app_src3[i_ow:i_ow + 700]
+        check("_open_window 先试内嵌",
+              seg_ow.find("_open_window_embedded") < seg_ow.find("_open_window_browser"),
+              "顺序反了")
+        check("内嵌不可用时有浏览器兜底", "_open_window_browser(url)" in seg_ow)
+
+        # 主线程必须留给窗口（WebView2 的 GUI 循环要求主线程）
+        i_main = app_src3.find("def main() -> None:")
+        seg_main = app_src3[i_main:]
+        check("服务跑在子线程（主线程留给窗口）",
+              "Thread(target=_serve" in seg_main and "uvicorn.run(app" in seg_main)
+        check("窗口是在主线程里开的（不是放在子线程里）",
+              "\n    _open_window(url)" in seg_main and "target=_open_window" not in seg_main)
+
+        # 退出要能关掉内嵌窗口
+        check("退出时会关内嵌窗口", "_close_embedded_window()" in app_src3)
+        check("退出仍保留浏览器窗口的关闭方式", "ime.close_app_windows()" in app_src3)
+
+        # 内嵌可用性探测不能因为缺库就抛异常
+        try:
+            avail = _m._webview_available()
+            check("_webview_available() 返回布尔", isinstance(avail, bool), avail)
+        except Exception as e:
+            check("_webview_available() 不抛异常", False, str(e))
+
         print("\n— 浏览器查找（别人可能卸载了 Edge）—")
         import winreg
         check("有 _find_browser()", callable(getattr(__import__("app", fromlist=["app"]), "_find_browser", None)))

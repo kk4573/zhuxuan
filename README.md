@@ -43,18 +43,17 @@ https://gh-proxy.com/https://github.com/kk4573/zhuxuan/raw/main/zhuxuan-v1.1.0.e
 
 | 项目 | 要求 |
 |---|---|
-| **系统** | Windows 10 或 11（64 位） |
-| **浏览器** | **Microsoft Edge**（系统自带）、**Google Chrome**、Brave、Vivaldi、Opera、360 极速浏览器 —— **其一即可** |
+| **系统** | Windows 10（1803 及以上）或 Windows 11，64 位 |
 | **Python** | **不需要**，程序已打包成单个 exe |
-| **网络** | 可选。只有查词/补释义/导入内置词表时才联网 |
+| **浏览器** | **不需要** —— 界面内嵌在程序自己的窗口里 |
+| **网络** | 可选。只有查词 / 补释义 / 导入内置词表时才联网 |
 
-关于浏览器：程序会**自动寻找**，找到哪个用哪个，优先 Edge。它用的是 Chromium 的
-"应用窗口"模式，所以打开后**没有地址栏、没有标签页**，跟原生程序一样。
+界面用的是 Windows 自带的 **WebView2** 组件（Windows 10 1803+ 和 Windows 11 都是
+系统的一部分），**不用你另外装任何东西**，装好系统就有。
 
-> **只装了 Firefox 的电脑**：Firefox 不支持这种独立窗口，程序会退回用你的默认浏览器
-> 打开（会带地址栏），**功能完全一样**。
->
-> **一个浏览器都没有**（Windows 11 现在确实可以卸载 Edge）：程序会弹窗提示你装一个。
+> **极少数没有 WebView2 的情况**（精简版系统、Windows Server）：
+> 程序会自动退回用你电脑上的浏览器打开，界面功能完全一样。
+> 连浏览器都没有时会弹窗提示。
 
 ### 放在哪、怎么启动
 
@@ -121,7 +120,7 @@ data/
 需要 Python 3.11+。
 
 ```bash
-pip install fastapi uvicorn openpyxl python-multipart pyinstaller pillow
+pip install fastapi uvicorn openpyxl python-multipart pyinstaller pillow pywebview
 
 # 开发时直接跑
 python app.py

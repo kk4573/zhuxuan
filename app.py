@@ -750,11 +750,15 @@ def api_cache_clear():
 
 @app.post("/api/quit")
 def api_quit():
-    """退出竹喧：先关掉应用窗口，再结束后台服务（省得用户再点一次 ×）。"""
+    """退出竹喧：关窗口 + 停服务。
+
+    内嵌窗口要程序化关掉它（destroy），否则窗口留着、服务也退不干净。
+    """
     def _die() -> None:
-        time.sleep(0.8)                 # 先把响应发回去
-        ime.close_app_windows()         # 顺手把窗口也关了
-        time.sleep(0.5)                 # 给 Edge 一点时间处理关闭消息
+        time.sleep(0.8)                      # 先把响应发回去
+        if not _close_embedded_window():
+            ime.close_app_windows()          # 浏览器窗口的情况：发 WM_CLOSE
+        time.sleep(0.4)                      # 给窗口一点时间处理关闭
         os._exit(0)
 
     threading.Thread(target=_die, daemon=True).start()
@@ -857,6 +861,83 @@ def _window_size() -> tuple[int, int]:
     return w, h
 
 
+# 当前内嵌窗口的引用（退出时要程序化关掉它）
+_WEBVIEW_WINDOW = None
+
+
+def _webview_available() -> bool:
+    """内嵌窗口（WebView2）能不能用。"""
+    try:
+        import webview  # noqa: F401
+    except Exception:
+        return False
+    # pywebview 在 Windows 上走 WebView2；运行时缺失要到真正启动时才报错，
+    # 这里只能判断"库在不在"，失败由 _open_window_embedded 兜住。
+    return True
+
+
+def _open_window_embedded(url: str) -> bool:
+    """把界面嵌进程序自己的窗口（WebView2）。成功返回 True。
+
+    为什么用内嵌而不是开浏览器窗口（原来的做法）：
+      · 内嵌用的 WebView2 是 Windows 的**系统组件**（Win10 1803+/Win11 自带），
+        用户不用去装任何浏览器；
+      · 窗口是**我们自己进程**创建的，标题栏颜色能用 DWM 直接改成深色；
+        （以前改不了 —— 窗口属于浏览器进程，它初始化完会把颜色刷回去。）
+    """
+    global _WEBVIEW_WINDOW
+
+    try:
+        import webview
+    except Exception:
+        return False
+
+    w, h = _window_size()
+
+    def _on_shown() -> None:
+        # 等窗口真正画出来再改标题栏，否则拿不到句柄。
+        # 用 ime.app_window_handles() 而不是 FindWindowW —— 后者只找顶层窗口，
+        # pywebview 的窗口不一定是，实测找不到。
+        time.sleep(1.2)
+        try:
+            for hwnd in ime.app_window_handles():
+                ime.darken_titlebar(hwnd)
+        except Exception:
+            pass
+
+    try:
+        window = webview.create_window(
+            APP_NAME, url,
+            width=w, height=h,
+            min_size=(880, 620),
+        )
+        _WEBVIEW_WINDOW = window
+        try:
+            window.events.shown += lambda: threading.Thread(target=_on_shown, daemon=True).start()
+        except Exception:
+            threading.Thread(target=_on_shown, daemon=True).start()
+
+        print("用内嵌窗口打开（WebView2）")
+        webview.start(debug=False)      # 阻塞，直到窗口被关闭
+        return True
+    except Exception as exc:
+        print(f"内嵌窗口不可用（{exc}），改用浏览器")
+        _WEBVIEW_WINDOW = None
+        return False
+
+
+def _close_embedded_window() -> bool:
+    """把内嵌窗口关掉（退出按钮用）。"""
+    global _WEBVIEW_WINDOW
+    if _WEBVIEW_WINDOW is None:
+        return False
+    try:
+        _WEBVIEW_WINDOW.destroy()
+        return True
+    except Exception:
+        return False
+
+
 def _no_browser_hint(url: str) -> None:
     """一个浏览器都找不到时的兜底提示。
 
@@ -877,6 +958,20 @@ def _no_browser_hint(url: str) -> None:
 
 def _open_window(url: str) -> None:
     """开一个独立窗口显示界面。
+
+    优先把界面**内嵌进程序自己的窗口**（WebView2）—— 最像原生程序，
+    而且不要求对方装浏览器。
+
+    内嵌不可用时退回浏览器方案：Chromium 系浏览器的 `--app`（无地址栏的独立窗口）
+    → 系统默认浏览器 → 都没有就弹窗提示。
+    """
+    if _webview_available() and _open_window_embedded(url):
+        return
+    _open_window_browser(url)
+
+
+def _open_window_browser(url: str) -> None:
+    """兜底：用浏览器开窗口（内嵌不可用时走这条）。
 
     优先用 Chromium 系浏览器（Edge / Chrome / Brave…）的 `--app` 模式：
     那样出来的是**没有地址栏、没有标签页**的独立窗口，用起来跟原生程序一样。
@@ -1016,15 +1111,21 @@ def main() -> None:
     port = _pick_port()
     url = f"http://{HOST}:{port}/"
 
-    def _launcher() -> None:
-        if _wait_ready(url + "api/stats"):
-            _open_window(url)
-        else:
-            print(f"服务启动超时，请手动打开 {url}")
+    # 服务放**子线程**，窗口放**主线程**。
+    # 为什么这么分：内嵌窗口（WebView2）的 GUI 循环必须在主线程跑；
+    # 以前是 uvicorn 占着主线程、窗口在子线程里开 —— 那样内嵌窗口起不来。
+    def _serve() -> None:
+        uvicorn.run(app, host=HOST, port=port, log_level="warning")
 
-    threading.Thread(target=_launcher, daemon=True).start()
+    threading.Thread(target=_serve, daemon=True).start()
     print(f"{APP_NAME} 启动中 … {url}")
-    uvicorn.run(app, host=HOST, port=port, log_level="warning")
+
+    if not _wait_ready(url + "api/stats"):
+        print(f"服务启动超时，请手动打开 {url}")
+        return
+
+    # 内嵌窗口会在这里阻塞到用户关窗；关掉后主线程结束，守护线程的服务随之退出
+    _open_window(url)
 
 
 if __name__ == "__main__":
