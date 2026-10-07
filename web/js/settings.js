@@ -13,6 +13,7 @@ async function openSettings() {
     $('#setKey').value = '';
     $('#setKey').placeholder = c.deepseek_ready ? '已配置（留空则保持不变）' : 'sk-…（留空则不用 AI 兜底）';
     $('#cfgPath').textContent = c.config_path;
+    if (typeof refreshBookSelects === 'function') refreshBookSelects();  // 词库下拉要最新
     loadCacheCount();
     msg('#settingsMsg', '');
     $('#settingsModal').hidden = false;
@@ -91,6 +92,25 @@ async function loadCacheCount() {
 /* ==================== 设置 / 退出的绑定 ==================== */
 
 function bindSettings() {
+  // 设置 → 词库 → 加入词库时默认加到
+  const sab = $('#setAddBook');
+  if (sab) {
+    sab.onchange = async () => {
+      const id = parseInt(sab.value, 10);
+      if (!id) return;
+      try {
+        await api('POST', '/api/books/' + id + '/default');
+        await loadBooks(true);
+        const nb = bookById(id);
+        toast('加入词库时默认加到：' + (nb ? nb.name : id), 'ok');
+        refreshAfterWordChange();
+      } catch (e) {
+        toast('设置失败：' + e.message, 'bad');
+        if (typeof refreshBookSelects === 'function') refreshBookSelects();
+      }
+    };
+  }
+
 
   // 设置弹层
   $('#settingsBtn').onclick = openSettings;

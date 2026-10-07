@@ -78,7 +78,8 @@ async function refreshBookSelects() {
   fillBooks($('#libBook'), { allOption: '全部单词', value: libCur || defaultBookId() });
   fillBooks($('#importBook'));
   fillBooks($('#addBook'));
-  fillBooks($('#lookBook'));
+  // 设置里那个要**始终反映当前默认**，不能沿用上次选中的（它本身就是"默认"的开关）
+  fillBooks($('#setAddBook'), { value: defaultBookId() });
 }
 
 

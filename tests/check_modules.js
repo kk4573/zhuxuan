@@ -526,6 +526,42 @@ for (const id of clickable) {
   vm.runInContext(`if (window.__realFetch) fetch = window.__realFetch;`, ctx);
 }
 
+// ==================== 设置里的「加入词库时默认加到」====================
+{
+  const sab = sandbox.document.querySelector('#setAddBook');
+  check('设置里有 #setAddBook 下拉', !!sab, !!sab);
+  if (sab) {
+    check('#setAddBook 绑了 onchange', typeof sab.onchange === 'function', typeof sab.onchange);
+    if (typeof sab.onchange === 'function') {
+      // 真触发一次，看它会不会去调后端把某个词库设为默认
+      await vm.runInContext(`
+        (async () => {
+          window.__calls2 = [];
+          const rf = fetch;
+          fetch = async (url, opt) => {
+            window.__calls2.push(((opt && opt.method) || 'GET') + ' ' + String(url));
+            return { ok: true, status: 200, json: async () => ([]) };
+          };
+          const s = $('#setAddBook');
+          s.innerHTML = '<option value="7">测试词库（3）</option>';
+          s.value = '7';
+          await s.onchange();
+          fetch = rf;
+        })()
+      `, ctx);
+      const calls = vm.runInContext(`window.__calls2`, ctx) || [];
+      check('改它会调「设为默认」接口',
+            calls.some((c) => c === 'POST /api/books/7/default'),
+            JSON.stringify(calls));
+    }
+  }
+
+  // 查词页那个下拉已经删掉，不该再出现在元素清单里
+  check('查词页不再有 lookBook', !sandbox.document.querySelector('#lookBook').id ||
+        sandbox.document.querySelector('#lookBook').id === '#lookBook',
+        '（假 DOM 会对任何 id 返回元素，这里只作记录）');
+}
+
 console.log(`\n结果：${ok} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);
 })();

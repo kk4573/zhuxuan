@@ -105,7 +105,7 @@ def main() -> int:
                 "setIme", "setKey", "setAccent", "setDecay", "cfgPath",
                 "lookInput", "lookBtn", "lookClear", "lookResult", "lookHint",
                 "clearCache", "cacheCount",
-                "studyBook", "libBook", "lookBook", "importBook", "addBook",
+                "studyBook", "libBook", "setAddBook", "importBook", "addBook",
                 "newBookBtn", "newBookModal", "newBookName", "newBookOk",
                 "newBookCancel", "bookModal", "bookList", "bookClose", "vocabSel", "vocabImport", "bookManageBtn",
              "lookBack"):
@@ -169,6 +169,18 @@ def main() -> int:
     field_rule = re.search(r"\.field\{([^}]*)\}", css3)
     check("答题页 .field 仍然有定位（那边的喇叭也靠它）",
           field_rule is not None and "position:relative" in field_rule.group(1).replace(" ", ""))
+
+    # ---- 查词页那个词库下拉挪到设置里了 ----
+    # 它原来放在搜索栏旁边，看着像"搜索范围"，其实只管"加入词库时加到哪"，
+    # 而那个按钮大多数时候根本不出现，所以那条下拉长期是摆设。现在统一进设置。
+    index_src = (WEB / "index.html").read_text(encoding="utf-8")
+    check("查词页不再有词库下拉", 'id="lookBook"' not in index_src)
+    check("设置里有「加入词库时默认加到」", 'id="setAddBook"' in index_src)
+    look_src2 = (WEB / "js" / "look.js").read_text(encoding="utf-8")
+    check("查词页加词走默认词库", "defaultBookId()" in look_src2)
+    settings_src = (WEB / "js" / "settings.js").read_text(encoding="utf-8")
+    check("settings.js 里处理了那个下拉", "#setAddBook" in settings_src)
+    check("设置里那个下拉会改默认词库", "/default" in settings_src)
 
     # ---- 加词 / 导入之后，界面上所有跟词量有关的地方都得刷 ----
     # 踩过两次：①"从例句加入词库后计数不变"（pop.js 只调了 loadWords）；
