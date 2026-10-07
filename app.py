@@ -822,6 +822,12 @@ def _open_window(url: str) -> None:
             # 又会刷回浅色，稳不住。这个开关是让它**从一开始就按深色画**，实测标题栏变纯黑，
             # 页面本身不受影响（不会被反色）。
             "--force-dark-mode",
+            # 别把本机的 Edge 登录态带进来。不加这个，新配置目录首次打开会弹
+            # 「正在同步你的浏览数据 · xxx@qq.com 已在此设备上登录」——
+            # 既挡住整个界面，又把机主的邮箱暴露给任何看到屏幕的人。
+            "--disable-features=msImplicitSignin,msEdgeIdentitySync,EdgeSigninPromo",
+            "--disable-sync",
+            "--no-service-autorun",
             "--no-first-run",
             "--no-default-browser-check",
             f"--disable-features={no_autofill}",

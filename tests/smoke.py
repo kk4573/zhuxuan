@@ -148,6 +148,10 @@ def main() -> int:
         # 最终方案是让 Chromium 按深色主题渲染自己的外壳（--force-dark-mode）。
         app_src = (ROOT / "app.py").read_text(encoding="utf-8")
         check("开窗口时带上 --force-dark-mode", "--force-dark-mode" in app_src)
+        # 不加这个，新配置目录首次打开会弹 Edge 的「同步你的浏览数据 / xxx@qq.com
+        # 已在此设备上登录」，把机主邮箱亮给任何看到屏幕的人
+        check("开窗口时禁止继承系统登录态", "msImplicitSignin" in app_src)
+        check("开窗口时关闭浏览器同步", '"--disable-sync"' in app_src)
         check("没留下那段无效的 DWM 轮询代码", "_tint_titlebar" not in app_src)
         check("窗口标题栏相关的窗口枚举函数还在",
               callable(getattr(__import__("core.ime", fromlist=["ime"]), "app_window_handles", None)))
