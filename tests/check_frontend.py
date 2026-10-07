@@ -170,6 +170,40 @@ def main() -> int:
     check("答题页 .field 仍然有定位（那边的喇叭也靠它）",
           field_rule is not None and "position:relative" in field_rule.group(1).replace(" ", ""))
 
+    # ---- 下拉框样式不能丢 ----
+    # 踩过：`#libBook,#lookBook{...}` 是共用规则，删 lookBook 时把整条删了，
+    # 词库页那个下拉直接变成没样式的白方块。这里盯着：HTML 里的 select 都要有样式。
+    html_src = (WEB / "index.html").read_text(encoding="utf-8")
+    css_src = (WEB / "style.css").read_text(encoding="utf-8")
+
+    def select_is_styled(tag, pos):
+        """这个 <select> 有没有样式？三种方式都算：
+           ① 自己的 id 选择器  ② 自己的 class  ③ 父级 class + select（如 .bookpick select）
+        """
+        sid = re.search(r'id="([^"]+)"', tag)
+        if sid and re.search(r"#" + re.escape(sid.group(1)) + r"[\s,{:]", css_src):
+            return True
+        scls = re.search(r'class="([^"]+)"', tag)
+        if scls:
+            for cls in scls.group(1).split():
+                if re.search(r"\." + re.escape(cls) + r"[\s,{:]", css_src):
+                    return True
+        # 父级：往这个标签前面找最近的一个 class="…"
+        before = html_src[max(0, pos - 400):pos]
+        parents = re.findall(r'class="([^"]+)"', before)
+        if parents:
+            for cls in parents[-1].split():
+                if re.search(r"\." + re.escape(cls) + r"\s+select", css_src):
+                    return True
+        return False
+
+    # 逐个盯着：任何 select 变成"没样式的白方块"都会被抓住
+    for m in re.finditer(r"<select[^>]*>", html_src):
+        tag = m.group(0)
+        sid = re.search(r'id="([^"]+)"', tag)
+        name = sid.group(1) if sid else tag[:40]
+        check(f"select#{name} 有样式", select_is_styled(tag, m.start()), tag[:90])
+
     # ---- 查词页那个词库下拉挪到设置里了 ----
     # 它原来放在搜索栏旁边，看着像"搜索范围"，其实只管"加入词库时加到哪"，
     # 而那个按钮大多数时候根本不出现，所以那条下拉长期是摆设。现在统一进设置。

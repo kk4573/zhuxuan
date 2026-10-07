@@ -182,6 +182,18 @@ main{padding:26px 22px 48px}
 }
 .sumact{margin-top:24px;display:flex;gap:12px;align-items:center}
 
+
+/* 词库页左上角那个词库下拉。
+   注意：这一条以前是 `#libBook,#lookBook{...}` 两个选择器共用的，
+   后来把查词页那个下拉挪进设置时，误删了整条规则 —— 结果这个词库下拉
+   变成了没有样式的白方块。改这种"多选择器共用规则"时，只删自己那个选择器。 */
+#libBook{
+  flex:none;max-width:190px;
+  background:var(--card);border:1px solid var(--line);border-radius:9px;
+  padding:8px 11px;outline:none;color:var(--fg);font-size:13px;cursor:pointer;
+}
+#libBook:focus{border-color:var(--accent)}
+
 /* ---------------- 词库 ---------------- */
 .tools{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
 .searchbox{position:relative;flex:1;min-width:180px;display:flex}
