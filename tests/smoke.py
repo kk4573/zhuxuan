@@ -142,6 +142,38 @@ def main() -> int:
         check("超范围的值被夹住", cfg3.get("pos_limit") == 6 and cfg3.get("meaning_count") == 3, cfg3)
         call("PUT", "/api/config", {"pos_limit": 0, "meaning_count": 2})
 
+        print("\n— 浏览器查找（别人可能卸载了 Edge）—")
+        import winreg
+        check("有 _find_browser()", callable(getattr(__import__("app", fromlist=["app"]), "_find_browser", None)))
+        import app as _app
+        real = _app.BROWSER_CANDIDATES
+        try:
+            found = _app._find_browser()
+            check("本机能找到可用的浏览器", found is not None, found)
+            if found:
+                exe, name = found
+                check("找到的是真实存在的 exe", os.path.exists(exe), exe)
+                check("浏览器有名字（用于日志）", bool(name) and isinstance(name, str), name)
+
+            # 一个都找不到时必须返回 None，而不是抛异常（调用方靠 None 走兜底）
+            _app.BROWSER_CANDIDATES = ()
+            orig = winreg.OpenKey
+            winreg.OpenKey = lambda *a, **k: (_ for _ in ()).throw(OSError("mock"))
+            try:
+                none_res = _app._find_browser()
+                check("没有任何浏览器时安静返回 None", none_res is None, none_res)
+            finally:
+                winreg.OpenKey = orig
+        finally:
+            _app.BROWSER_CANDIDATES = real
+
+        app_src2 = (ROOT / "app.py").read_text(encoding="utf-8")
+        check("候选里有 Edge 以外的浏览器（Chrome 等）", "Chrome" in app_src2 and "Brave" in app_src2)
+        check("找不到浏览器时有系统弹窗兜底（不依赖浏览器）", "_no_browser_hint" in app_src2)
+        check("仍在用 --app 独立窗口", '"--app={url}"' in app_src2 or "--app=" in app_src2)
+        check("浏览器配置目录已改名（不再假定是 Edge）", "browser-profile" in app_src2)
+        check("有老配置目录的迁移逻辑", "_migrate_profile_dir" in app_src2)
+
         print("\n— 深色标题栏 —")
         # 浅色系统下 Edge 会给窗口画一条白标题栏，和深色界面很不搭。
         # 试过 DwmSetWindowAttribute：窗口刚开时有效，Edge 初始化完又刷回浅色，稳不住。

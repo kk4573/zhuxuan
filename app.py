@@ -36,9 +36,35 @@ HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 APP_NAME = "竹喧"
 
-EDGE_PATHS = (
-    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+# 能开 --app 独立窗口的浏览器（Chromium 系都支持这个参数）。
+# 按优先级排：Edge 是 Windows 自带的，最先试；其余是用户可能自己装的。
+# 注意 Firefox 不支持 --app，所以不在列表里 —— 它会被"默认浏览器"那条兜底接住。
+BROWSER_CANDIDATES = (
+    ("Edge", (
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    )),
+    ("Chrome", (
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+    )),
+    ("Brave", (
+        r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+        r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe",
+    )),
+    ("Vivaldi", (
+        r"C:\Program Files\Vivaldi\Application\vivaldi.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Vivaldi\Application\vivaldi.exe"),
+    )),
+    ("Opera", (
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Opera\opera.exe"),
+        r"C:\Program Files\Opera\opera.exe",
+    )),
+    ("360 极速浏览器", (
+        r"C:\Program Files (x86)\360\360Chrome\Chrome\Application\360chrome.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\360Chrome\Chrome\Application\360chrome.exe"),
+    )),
 )
 
 
@@ -759,10 +785,43 @@ def _pick_port(start: int = DEFAULT_PORT, tries: int = 30) -> int:
     raise RuntimeError("找不到可用端口")
 
 
-def _find_edge() -> str | None:
-    for p in EDGE_PATHS:
-        if os.path.exists(p):
-            return p
+def _find_browser() -> tuple[str, str] | None:
+    """找一个能开独立窗口的浏览器，返回 (可执行文件路径, 名字)。
+
+    顺序：① 已知安装位置（Edge 优先）→ ② 注册表里系统登记的浏览器。
+    都不行就返回 None，由调用方退回到"用系统默认浏览器打开"。
+    """
+    # ① 已知路径
+    for name, paths in BROWSER_CANDIDATES:
+        for p in paths:
+            if p and os.path.exists(p):
+                return p, name
+
+    # ② 注册表：系统登记过的浏览器（StartMenuInternet 是 Windows 的标准登记处）
+    try:
+        import winreg
+        for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+            key_path = r"SOFTWARE\Clients\StartMenuInternet"
+            try:
+                with winreg.OpenKey(root, key_path) as k:
+                    n = winreg.QueryInfoKey(k)[0]
+                    for i in range(n):
+                        try:
+                            sub = winreg.EnumKey(k, i)
+                            with winreg.OpenKey(k, sub + r"\shell\open\command") as ck:
+                                cmd = winreg.QueryValue(ck, None)
+                            exe = cmd.strip().strip('"').split('"')[0] if cmd.startswith('"') \
+                                else cmd.strip().split(" ")[0]
+                            exe = os.path.expandvars(exe)
+                            if exe and os.path.exists(exe) and exe.lower().endswith(".exe"):
+                                return exe, sub
+                        except OSError:
+                            continue
+            except OSError:
+                continue
+    except Exception:
+        pass
+
     return None
 
 
@@ -798,47 +857,98 @@ def _window_size() -> tuple[int, int]:
     return w, h
 
 
+def _no_browser_hint(url: str) -> None:
+    """一个浏览器都找不到时的兜底提示。
+
+    用 Win32 的 MessageBox —— 它由系统绘制，不需要任何浏览器参与，
+    所以"连浏览器都没有"的情况下它照样能弹出来把话说明白。
+    """
+    msg = (
+        f"竹喧需要一个浏览器来显示界面，但这台电脑上没找到。\n\n"
+        f"请安装 Microsoft Edge 或 Google Chrome（都免费），装好后重新打开竹喧。\n\n"
+        f"（服务其实已经在运行，你也可以手动在浏览器里打开：\n{url}）"
+    )
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, msg, "竹喧 · 找不到浏览器", 0x40)  # 信息图标
+    except Exception:
+        print(msg)
+
+
 def _open_window(url: str) -> None:
-    edge = _find_edge()
-    if edge:
-        # 关掉 Edge 的自动填充模块（输入框一聚焦就弹「保存的信息」下拉，很碍事）。
-        # 这些都是 Chromium 的 feature 开关，不认识的会被静默忽略、不会出问题。
-        no_autofill = ",".join([
-            "Autofill",                              # 整个模块（若该版本有此开关）
-            "AutofillServerCommunication",           # 不再向服务器要填充预测
-            "AutofillEnableAccountWalletStorage",
-            "AutofillEnableProfileDeduplication",
-            "AutofillEnablePaymentsMetadata",
-            "AutofillEnableSaveCardLoadingAndUpdating",
-            "AutofillEnableVirtualCardMetadata",
-            "PasswordManagerOnboarding",
-        ])
-        subprocess.Popen([
-            edge, f"--app={url}",
-            "--window-size=%d,%d" % _window_size(),
-            # 让 Chromium 按深色主题渲染自己的外壳（窗口标题栏、滚动条…）。
-            # 竹喧是深色界面，而系统是浅色主题时，那条白标题栏特别扎眼（用户反馈的）。
-            # 试过用 DwmSetWindowAttribute 改标题栏颜色：窗口刚开时有效，Edge 初始化完
-            # 又会刷回浅色，稳不住。这个开关是让它**从一开始就按深色画**，实测标题栏变纯黑，
-            # 页面本身不受影响（不会被反色）。
-            "--force-dark-mode",
-            # 别把本机的 Edge 登录态带进来。不加这个，新配置目录首次打开会弹
-            # 「正在同步你的浏览数据 · xxx@qq.com 已在此设备上登录」——
-            # 既挡住整个界面，又把机主的邮箱暴露给任何看到屏幕的人。
-            "--disable-features=msImplicitSignin,msEdgeIdentitySync,EdgeSigninPromo",
-            "--disable-sync",
-            "--no-service-autorun",
-            "--no-first-run",
-            "--no-default-browser-check",
-            f"--disable-features={no_autofill}",
-            "--disable-save-password-bubble",
-            # 用竹喧自己的浏览器配置目录：一是不会把你日常 Edge 里那些
-            # 「保存的信息」带进来（输入框一聚焦就弹下拉，很烦），
-            # 二是应用和你的日常浏览互不打扰。
-            f"--user-data-dir={DATA_DIR / 'edge-profile'}",
-        ], cwd=str(DATA_DIR))
-    else:
-        webbrowser.open(url)
+    """开一个独立窗口显示界面。
+
+    优先用 Chromium 系浏览器（Edge / Chrome / Brave…）的 `--app` 模式：
+    那样出来的是**没有地址栏、没有标签页**的独立窗口，用起来跟原生程序一样。
+    Firefox 不支持 `--app`，所以不在候选里。
+    """
+    found = _find_browser()
+    if not found:
+        # 一个 Chromium 系都没找到 —— 退回系统默认浏览器。
+        # 界面还是能出来（只是会带地址栏），比"什么都不发生"好得多。
+        try:
+            opened = webbrowser.open(url)
+        except Exception:
+            opened = False
+        if not opened:
+            # 连默认浏览器都没有：用系统弹窗把话说明白（MessageBox 不依赖浏览器）
+            _no_browser_hint(url)
+        return
+
+    exe, browser_name = found
+    print(f"用 {browser_name} 打开窗口")
+
+    # 关掉自动填充模块（输入框一聚焦就弹「保存的信息」下拉，很碍事）。
+    # 这些都是 Chromium 的 feature 开关，不认识的会被静默忽略、不会出问题。
+    no_autofill = ",".join([
+        "Autofill",                              # 整个模块（若该版本有此开关）
+        "AutofillServerCommunication",           # 不再向服务器要填充预测
+        "AutofillEnableAccountWalletStorage",
+        "AutofillEnableProfileDeduplication",
+        "AutofillEnablePaymentsMetadata",
+        "AutofillEnableSaveCardLoadingAndUpdating",
+        "AutofillEnableVirtualCardMetadata",
+        "PasswordManagerOnboarding",
+    ])
+    subprocess.Popen([
+        exe, f"--app={url}",
+        "--window-size=%d,%d" % _window_size(),
+        # 让 Chromium 按深色主题渲染自己的外壳（窗口标题栏、滚动条…）。
+        # 竹喧是深色界面，而系统是浅色主题时，那条白标题栏特别扎眼（用户反馈的）。
+        # 试过用 DwmSetWindowAttribute 改标题栏颜色：窗口刚开时有效，浏览器初始化完
+        # 又会刷回浅色，稳不住。这个开关是让它**从一开始就按深色画**，实测标题栏变纯黑，
+        # 页面本身不受影响（不会被反色）。
+        "--force-dark-mode",
+        # 别把本机的登录态带进来。不加这个，新配置目录首次打开会弹
+        # 「正在同步你的浏览数据 · xxx@qq.com 已在此设备上登录」——
+        # 既挡住整个界面，又把机主的邮箱暴露给任何看到屏幕的人。
+        # （msImplicitSignin 那几个是 Edge 专属，Chrome 会忽略，无害。）
+        "--disable-features=msImplicitSignin,msEdgeIdentitySync,EdgeSigninPromo",
+        "--disable-sync",
+        "--no-service-autorun",
+        "--no-first-run",
+        "--no-default-browser-check",
+        f"--disable-features={no_autofill}",
+        "--disable-save-password-bubble",
+        # 用竹喧自己的配置目录：一是不会把你日常浏览器里那些
+        # 「保存的信息」带进来（输入框一聚焦就弹下拉，很烦），
+        # 二是应用和你的日常浏览互不打扰。
+        f"--user-data-dir={DATA_DIR / 'browser-profile'}",
+    ], cwd=str(DATA_DIR))
+
+
+def _migrate_profile_dir() -> None:
+    """老版本的配置目录叫 edge-profile，现在可能是别的浏览器，改叫 browser-profile。
+
+    这里做一次性改名，免得升级后丢浏览器的缓存（更重要的是别让人以为数据没了）。
+    """
+    old = DATA_DIR / "edge-profile"
+    new = DATA_DIR / "browser-profile"
+    try:
+        if old.exists() and not new.exists():
+            old.rename(new)
+    except OSError:
+        pass          # 改名失败也不影响使用，大不了重建一个
 
 
 def _running_instance() -> str | None:
@@ -895,6 +1005,7 @@ def _ensure_streams() -> None:
 
 def main() -> None:
     _ensure_streams()          # 必须在任何 print / uvicorn 之前
+    _migrate_profile_dir()     # 老版本的 edge-profile 改名成 browser-profile
 
     existing = _running_instance()
     if existing:
