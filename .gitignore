@@ -15,7 +15,7 @@ __pycache__/
 build/
 dist/
 *.exe
-!zhuxuan-v1.1.0.exe
+!zhuxuan-v1.1.1.exe
 
 # 日志与临时文件
 *.log
@@ -32,3 +32,7 @@ tests/screenshots/
 
 # 开发日志的私人原版（含具体使用记录），公开仓库用中性版
 开发日志-原始版.md
+
+# 临时草稿（发布用的文案，不需要进仓库）
+RELEASE_v*_文案.md
+build_pack.log
