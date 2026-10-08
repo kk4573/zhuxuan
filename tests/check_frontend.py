@@ -170,6 +170,25 @@ def main() -> int:
     check("答题页 .field 仍然有定位（那边的喇叭也靠它）",
           field_rule is not None and "position:relative" in field_rule.group(1).replace(" ", ""))
 
+    # ---- 检查更新 ----
+    # 仓库里放 version.txt，程序启动时静默查一次；有新版就在顶栏下面提示一条。
+    # 关键：查失败必须安静放过（断网/被墙都不能影响使用）。
+    app_src_v = (ROOT / "app.py").read_text(encoding="utf-8")
+    check("有版本号常量", "APP_VERSION" in app_src_v)
+    check("有 /api/version 接口", '"/api/version"' in app_src_v)
+    check("更新检查走 api.github.com（实测唯一稳定可达的域名）",
+          "api.github.com" in app_src_v)
+    check("更新检查放在后台线程（不拖慢启动）", "_check_update_bg" in app_src_v)
+
+    base_v = (WEB / "js" / "base.js").read_text(encoding="utf-8")
+    main_v = (WEB / "js" / "main.js").read_text(encoding="utf-8")
+    check("前端有 checkUpdate()", "function checkUpdate" in base_v or "function checkUpdate" in main_v)
+    check("checkUpdate 在启动时被调用", "checkUpdate" in main_v)
+    check("查更新失败不打扰用户（整段在 try 里）",
+          "catch" in base_v[base_v.find("function checkUpdate"):base_v.find("function checkUpdate") + 1500])
+    index_v = (WEB / "index.html").read_text(encoding="utf-8")
+    check("有更新提示条元素", 'id="updateBar"' in index_v)
+
     # ---- 下拉框样式不能丢 ----
     # 踩过：`#libBook,#lookBook{...}` 是共用规则，删 lookBook 时把整条删了，
     # 词库页那个下拉直接变成没样式的白方块。这里盯着：HTML 里的 select 都要有样式。

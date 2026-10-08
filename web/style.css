@@ -777,3 +777,16 @@ button.mini:disabled{opacity:.55;cursor:default}
   font-size:13.5px;color:var(--accent);
 }
 .backbtn:hover{text-decoration:underline}
+
+/* ==================== 新版本提示条 ==================== */
+
+/* 出现在顶栏下方，一条不打扰的细条。只在真的查到新版本时才显示。 */
+.updatebar{
+  display:flex;align-items:center;gap:12px;
+  padding:9px 18px;
+  background:rgba(58,122,216,.14);
+  border-bottom:1px solid rgba(58,122,216,.3);
+  color:var(--fg);font-size:13px;
+}
+.updatebar[hidden]{display:none}
+.updatebar span{flex:1}

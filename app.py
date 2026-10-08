@@ -35,6 +35,7 @@ WEB_DIR = RES_DIR / "web"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 APP_NAME = "竹喧"
+APP_VERSION = "1.1.1"          # 发新版时改这里，同时更新仓库里的 version.txt
 
 # 能开 --app 独立窗口的浏览器（Chromium 系都支持这个参数）。
 # 按优先级排：Edge 是 Windows 自带的，最先试；其余是用户可能自己装的。
@@ -76,6 +77,67 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=APP_NAME, lifespan=lifespan)
+
+
+# ============================================================ 版本 / 更新检查
+
+# 仓库地址（检查更新用）。走 api.github.com —— 实测国内只有这个域名稳定可达，
+# github.com 网页和 raw.githubusercontent.com 都会超时。
+UPDATE_REPO = "kk4573/zhuxuan"
+_UPDATE_CACHE: dict = {"checked": False, "latest": None, "error": None}
+
+
+def _version_tuple(v: str) -> tuple:
+    """把 "1.2.3" 变成 (1, 2, 3)，方便比较大小。非数字的部分忽略。"""
+    parts = []
+    for seg in str(v or "").strip().split("."):
+        num = "".join(ch for ch in seg if ch.isdigit())
+        parts.append(int(num) if num else 0)
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:3])
+
+
+def _fetch_latest_version() -> str | None:
+    """从仓库里取 version.txt。失败返回 None（不抛异常）。"""
+    import base64
+    url = f"https://api.github.com/repos/{UPDATE_REPO}/contents/version.txt"
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "zhuxuan-update-check",
+        "Accept": "application/vnd.github+json",
+    })
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        data = json.loads(resp.read().decode("utf-8", "ignore"))
+    content = data.get("content")
+    if not content:
+        return None
+    text = base64.b64decode(content).decode("utf-8", "ignore").strip()
+    return text.split()[0] if text else None
+
+
+def _check_update_bg() -> None:
+    """后台查一次有没有新版本。查不到就安静放过 —— 这只是个便利功能，
+    断网、被墙、GitHub 挂了都不该影响正常使用。"""
+    try:
+        latest = _fetch_latest_version()
+        _UPDATE_CACHE["latest"] = latest
+    except Exception as exc:
+        _UPDATE_CACHE["error"] = str(exc)[:120]
+    finally:
+        _UPDATE_CACHE["checked"] = True
+
+
+@app.get("/api/version")
+def api_version():
+    """当前版本，以及（如果查到了）有没有更新。"""
+    latest = _UPDATE_CACHE.get("latest")
+    return {
+        "current": APP_VERSION,
+        "latest": latest,
+        "has_update": bool(latest) and _version_tuple(latest) > _version_tuple(APP_VERSION),
+        "checked": _UPDATE_CACHE.get("checked", False),
+        "error": _UPDATE_CACHE.get("error"),
+    }
 
 
 # ============================================================ 统计
@@ -895,10 +957,13 @@ def _open_window_embedded(url: str) -> bool:
     w, h = _window_size()
 
     def _on_shown() -> None:
-        # 等窗口真正画出来再改标题栏，否则拿不到句柄。
-        # 用 ime.app_window_handles() 而不是 FindWindowW —— 后者只找顶层窗口，
-        # pywebview 的窗口不一定是，实测找不到。
-        time.sleep(1.2)
+        """窗口刚显示时，把标题栏刷成深色。
+
+        注意：必须**只在 UI 线程**里调，绝不能从后台线程去碰窗口对象 ——
+        曾经写过一个"每 2 秒跨线程遍历 Application.OpenForms"的版本，
+        结果把界面彻底卡死（白屏、标题栏显示"无响应"）。
+        """
+        time.sleep(1.2)      # 等窗口真正画出来，否则拿不到句柄
         try:
             for hwnd in ime.app_window_handles():
                 ime.darken_titlebar(hwnd)
@@ -913,7 +978,8 @@ def _open_window_embedded(url: str) -> bool:
         )
         _WEBVIEW_WINDOW = window
         try:
-            window.events.shown += lambda: threading.Thread(target=_on_shown, daemon=True).start()
+            window.events.shown += lambda: threading.Thread(
+                target=_on_shown, daemon=True).start()
         except Exception:
             threading.Thread(target=_on_shown, daemon=True).start()
 
@@ -1123,6 +1189,9 @@ def main() -> None:
     if not _wait_ready(url + "api/stats"):
         print(f"服务启动超时，请手动打开 {url}")
         return
+
+    # 后台查一下有没有新版本（查不到就算了，绝不影响启动）
+    threading.Thread(target=_check_update_bg, daemon=True).start()
 
     # 内嵌窗口会在这里阻塞到用户关窗；关掉后主线程结束，守护线程的服务随之退出
     _open_window(url)

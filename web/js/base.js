@@ -182,6 +182,35 @@ async function refreshAfterWordChange() {
   if ($('#view-lib') && !$('#view-lib').hidden) await loadWords(1);
 }
 
+/** 查有没有新版本，有就在顶栏下面显示一条提示。
+ *
+ * 这只是个便利功能：查不到（断网、被墙、GitHub 挂了）就安静不显示，
+ * 绝不该影响正常使用，所以整段都包在 try 里。
+ */
+async function checkUpdate() {
+  try {
+    const v = await api('GET', '/api/version');
+    if (!v || !v.has_update || !v.latest) return;
+
+    const bar = $('#updateBar');
+    const txt = $('#updateText');
+    if (!bar || !txt) return;
+
+    txt.innerHTML = '有新版本 <b>' + esc(v.latest) + '</b> 可用（你正在用 ' +
+                    esc(v.current) + '）。数据不会丢，换掉 exe 就行。';
+    bar.hidden = false;
+
+    const how = $('#updateHow');
+    if (how) how.onclick = () => {
+      toast('下载新版 exe 丢进原文件夹，删掉旧的那个即可；词库和记录都在 data\\ 里，不会丢', 'ok');
+    };
+    const cl = $('#updateClose');
+    if (cl) cl.onclick = () => { bar.hidden = true; };
+  } catch (e) {
+    /* 查更新失败无所谓，不打扰用户 */
+  }
+}
+
 function showPhase(p) {
   S.phase = p;
   $('#study-ready').hidden = p !== 'ready';
@@ -270,3 +299,4 @@ function bindCore() {
     }
   });
 }
+
