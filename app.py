@@ -35,7 +35,7 @@ WEB_DIR = RES_DIR / "web"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 APP_NAME = "竹喧"
-APP_VERSION = "1.1.1"          # 发新版时改这里，同时更新仓库里的 version.txt
+APP_VERSION = "1.2.0"          # 发新版时改这里，同时更新仓库里的 version.txt
 
 # 能开 --app 独立窗口的浏览器（Chromium 系都支持这个参数）。
 # 按优先级排：Edge 是 Windows 自带的，最先试；其余是用户可能自己装的。
@@ -957,16 +957,18 @@ def _open_window_embedded(url: str) -> bool:
     w, h = _window_size()
 
     def _on_shown() -> None:
-        """窗口刚显示时，把标题栏刷成深色。
+        """窗口刚显示时的处理。
 
-        注意：必须**只在 UI 线程**里调，绝不能从后台线程去碰窗口对象 ——
-        曾经写过一个"每 2 秒跨线程遍历 Application.OpenForms"的版本，
-        结果把界面彻底卡死（白屏、标题栏显示"无响应"）。
+        这里**故意不再把标题栏刷成深色**：界面已经改成白色简约风，
+        系统标题栏保持它本来的浅色，两者才一致。
+        （早先是深色界面 + 白标题栏割裂，才需要强刷深色；
+        现在反过来了，强刷深色反而制造出新的黑框。）
         """
-        time.sleep(1.2)      # 等窗口真正画出来，否则拿不到句柄
+        time.sleep(0.6)
+        # 界面是浅色，标题栏也用系统默认浅色 —— 什么都不用做。
+        # 如果将来再把界面改回深色，这里需要恢复 darken_titlebar 调用。
         try:
-            for hwnd in ime.app_window_handles():
-                ime.darken_titlebar(hwnd)
+            _ = ime.app_window_handles()      # 仅确认能拿到窗口，不做任何改色
         except Exception:
             pass
 
@@ -984,7 +986,11 @@ def _open_window_embedded(url: str) -> bool:
             threading.Thread(target=_on_shown, daemon=True).start()
 
         print("用内嵌窗口打开（WebView2）")
-        webview.start(debug=False)      # 阻塞，直到窗口被关闭
+        # 窗口图标。不指定的话，标题栏会显示 Windows 的默认四色方块图标
+        # （用户反馈"左上角那个图标能不能改一下"）。exe 自身的图标由打包时的
+        # --icon 决定，但**窗口**图标要在这里单独给。
+        _ico = BASE_DIR / "app.ico"
+        webview.start(debug=False, icon=str(_ico) if _ico.exists() else None)
         return True
     except Exception as exc:
         print(f"内嵌窗口不可用（{exc}），改用浏览器")
@@ -1074,12 +1080,9 @@ def _open_window_browser(url: str) -> None:
     subprocess.Popen([
         exe, f"--app={url}",
         "--window-size=%d,%d" % _window_size(),
-        # 让 Chromium 按深色主题渲染自己的外壳（窗口标题栏、滚动条…）。
-        # 竹喧是深色界面，而系统是浅色主题时，那条白标题栏特别扎眼（用户反馈的）。
-        # 试过用 DwmSetWindowAttribute 改标题栏颜色：窗口刚开时有效，浏览器初始化完
-        # 又会刷回浅色，稳不住。这个开关是让它**从一开始就按深色画**，实测标题栏变纯黑，
-        # 页面本身不受影响（不会被反色）。
-        "--force-dark-mode",
+        # 界面是白色简约风，标题栏也用系统默认的浅色，两者一致。
+        # （早先是深色界面，才需要 --force-dark-mode 把标题栏刷成黑的；
+        # 界面改浅色后就不需要了，留着反而会在浅色界面上顶出一条黑框。）
         # 别把本机的登录态带进来。不加这个，新配置目录首次打开会弹
         # 「正在同步你的浏览数据 · xxx@qq.com 已在此设备上登录」——
         # 既挡住整个界面，又把机主的邮箱暴露给任何看到屏幕的人。

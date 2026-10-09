@@ -36,3 +36,8 @@ tests/screenshots/
 # 临时草稿（发布用的文案，不需要进仓库）
 RELEASE_v*_文案.md
 build_pack.log
+
+# 本地备份与临时文件（不进版本库）
+*.dark.bak
+竹喧.exe.bak
+.look.js.bak

@@ -141,12 +141,10 @@ function bindSettings() {
 
   // 退出应用
   $('#quitBtn').onclick = async () => {
-    const yes = await askConfirm('退出竹喧',
-      '关掉窗口只是在后台待着，这里才是真正的退出。确定退出吗？', '退出');
+    const yes = await askConfirm('退出竹喧', '确定退出吗？', '退出');
     if (!yes) return;
     setIme(false);                       // 先把输入法还原
-    document.body.innerHTML =
-      '<div class="bye">正在退出<span>窗口马上会自己关掉</span></div>';
+    // 不再显示"正在退出…"那行字：用户要求直接退出，中间不要任何提示。
     try { await api('POST', '/api/quit'); } catch (e) { /* 服务正在退出，属正常 */ }
     // 后端会用 Win32 把窗口关掉；这里再用 JS 试一次作为兜底
     setTimeout(() => { try { window.close(); } catch (e) { /* 浏览器可能不允许，无所谓 */ } }, 500);
